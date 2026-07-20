@@ -32,4 +32,4 @@
  
 <!-- Classic references: official docs, articles, tutorials -->
  
-<!-- AI usage: specify for which tasks and which parts of the project AI was used -->
+<!-- AI usage: specify for which tasks and which parts of the project AI was used --># Test de push depuis ma VM

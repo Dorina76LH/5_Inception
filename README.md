@@ -67,3 +67,9 @@ Dans le terminal de ta VM (connecté en SSH), tu fais un git pull pour récupér
 Hier soir, on a tenté d'activer l'extension VS Code Remote - SSH pour que ton VS Code se connecte directement dans la VM (ce qui t'éviterait de faire des push/pull incessants juste pour tester une ligne de code).
 Tu t'es heurté à un message Permission denied. C'est le petit point technique qu'il nous reste à débloquer aujourd'hui si tu veux gagner en fluidité.
 Tu as une configuration ultra propre pour attaquer Inception. Est-ce que tu veux qu'on commence par régler ce problème de Permission denied sur VS Code pour te simplifier la vie, ou préfères-tu qu'on attaque directement l'architecture des fichiers Docker ?
+
+eyaindre la vm
+sudo shutdown -h now
+
+rallumer dans UTM et relancer
+ssh doberes@192.168.64.3

@@ -73,3 +73,121 @@ sudo shutdown -h now
 
 rallumer dans UTM et relancer
 ssh doberes@192.168.64.3
+
+# Notes Inception — Setup VM
+
+## 1. Avant l'installation
+
+- [ ] Télécharger l'ISO **Debian ARM64** (netinst, pas la version desktop complète) — adapté au Mac M3 (Apple Silicon)
+- [ ] Créer la VM dans UTM :
+  - Réseau en mode **Bridged** (pas NAT) → la VM aura sa propre IP sur le réseau local, plus simple pour SSH et tests
+  - RAM et disque : taille minimale (ex. 2 Go RAM / 8-10 Go disque suffisent pour Inception)
+  - **Pas de partition** custom → laisser le partitionnement automatique/guidé
+
+## 2. Pendant l'installation Debian
+
+- [ ] Fuseau horaire / clavier (fr)
+- [ ] Créer un utilisateur (pas root direct)
+- [ ] **Ne pas installer d'environnement de bureau** (Desktop environment) → décocher dans le choix des tâches
+- [ ] Cocher uniquement :
+  - `SSH server`
+  - `standard system utilities`
+- [ ] Pas de sudo par défaut → configurer ensuite l'utilisateur dans le groupe sudo
+
+```bash
+# Ajouter son user au groupe sudo (à faire en root ou via su)
+usermod -aG sudo ton_user
+```
+
+## 3. Après l'installation — paquets à installer
+
+```bash
+sudo apt update && sudo apt upgrade -y
+
+# Git
+sudo apt install -y git
+
+# Docker + Docker Compose
+sudo apt install -y docker.io docker-compose
+
+# SSH server (si pas fait à l'install)
+sudo apt install -y openssh-server
+sudo systemctl enable ssh
+sudo systemctl start ssh
+```
+
+**Éviter d'avoir à taper `sudo` avant chaque commande docker :**
+```bash
+sudo usermod -aG docker $USER
+# puis se déconnecter/reconnecter (ou reboot) pour que ça prenne effet
+```
+
+## 4. Initialiser Git (clé SSH)
+
+```bash
+# Générer une paire de clés SSH
+ssh-keygen -t ed25519 -C "ton_email@exemple.com"
+
+# Afficher la clé publique pour la copier
+cat ~/.ssh/id_ed25519.pub
+```
+→ Copier la clé affichée, l'ajouter sur GitHub/GitLab : **Settings > SSH and GPG keys > New SSH key**
+
+```bash
+# Tester la connexion
+ssh -T git@github.com
+```
+
+## 5. Récupérer l'adresse IP de la VM
+
+```bash
+ip a
+# ou
+hostname -I
+```
+→ Repérer l'IP sur l'interface réseau principale (souvent `enp0sX` ou similaire, pas `lo`)
+
+## 6. Se connecter en SSH depuis le Mac
+
+```bash
+ssh ton_user@IP_DE_LA_VM
+```
+
+## 7. Cloner le dépôt Inception
+
+```bash
+git clone git@github.com:ton_compte/inception.git
+cd inception
+```
+
+## 8. Configurer `/etc/hosts` (sur le Mac, PAS dans la VM)
+
+```bash
+sudo nano /etc/hosts
+```
+Ajouter la ligne :
+```
+IP_DE_LA_VM    login.42.fr
+```
+(remplacer `login` par ton vrai login 42)
+
+## 9. Bonus / bonnes pratiques à ne pas oublier
+
+- [ ] Faire un **snapshot UTM** une fois la base propre installée (Debian + Docker + Git configurés) → restauration rapide en cas de casse
+- [ ] Vérifier `docker --version` et `docker-compose --version` fonctionnent sans erreur
+- [ ] Tester `docker run hello-world` pour valider l'install Docker
+- [ ] Noter la version exacte de Debian utilisée (ex. `12.15`) pour la cohérence avec les Dockerfiles
+
+## 10. Vérifications finales avant de coder
+
+```bash
+# Version Debian installée
+cat /etc/debian_version
+
+# Version Docker
+docker --version
+docker-compose --version
+
+# Test hello-world
+docker run hello-world
+```

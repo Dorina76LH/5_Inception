@@ -1,4 +1,6 @@
-     *This project has been created as part of the 42 curriculum by <doberes>.*
+# Inception
+
+*This project has been created as part of the 42 curriculum by <doberes>.*
  
 ## Description
  
@@ -72,13 +74,13 @@ Configurer la DNS local
 check nano : which nano
 en mode root : sudo nano /etc/hosts
 127.0.0.1       localhost
-127.0.1.1       doberes
+127.0.1.1       doberes (nom interne de la vm)
 
 # The following lines are desirable for IPv6 capable hosts
 ::1     localhost ip6-localhost ip6-loopback
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
-127.0.0.1       doberes.42.fr (ajouter)
+127.0.0.1       doberes.42.fr (ajouter : adresse web heberge)
 
 check : ping -c 2 doberes.42.fr
 

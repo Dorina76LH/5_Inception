@@ -259,3 +259,4 @@ docker build -t node-app:1.0 .
 
 - [ ] TechWorld with Nana — Docker Crash Course For Absolute Beginners
 - Youssef medium 
+- [ ] https://medium.com/@mvuk/using-tls-certificates-with-nginx-docker-container-74c6769a26db

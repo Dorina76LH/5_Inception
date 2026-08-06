@@ -1,0 +1,7 @@
+[mysqld]
+
+# Allow connections from any host
+bind-address = 0.0.0.0
+
+# Set the default port for MariaDB
+port = 3306

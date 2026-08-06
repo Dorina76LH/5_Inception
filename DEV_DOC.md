@@ -1,7 +1,5 @@
 # Developer Documentation
  
-## Environment setup
- 
 # Environment setup — VM (UTM + Debian)
 
 ## 1. Creating the VM

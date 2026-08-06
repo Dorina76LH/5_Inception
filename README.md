@@ -75,7 +75,11 @@ security boundary, while Docker trades some of that isolation for speed, density
 <!-- Comparison -->
  
 ## Resources
- 
-<!-- Classic references: official docs, articles, tutorials -->
- 
+- [Docker build best practices](https://docs.docker.com/build/building/best-practices/) — official documentation
+- [Control NGINX at runtime](https://docs.nginx.com/nginx/admin-guide/basic-functionality/runtime-control/) — signal handling reference
+- [Control NGINX daemon off](https://labex.io/questions/what-is-the-purpose-of-the-nginx-g-daemon-off-command-in--871954)
+- TechWorld with Nana — *Docker Crash Course For Absolute Beginners* (YouTube)
+- [Using TLS certificates with an NGINX Docker container](https://medium.com/@mvuk/using-tls-certificates-with-nginx-docker-container-74c6769a26db)
+- [Inception project docuemntation - Youssef](https://medium.com/@imyzf/inception-3979046d90a0)
+
 <!-- AI usage: specify for which tasks and which parts of the project AI was used -->

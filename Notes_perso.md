@@ -255,8 +255,82 @@ docker build -t node-app:1.0 .
 
 ---
 
-## 11. Vidéos / sources vues
+## 12. PID 1, daemons, et foreground vs background
+ 
+### C'est quoi PID 1 ?
+ 
+Les processus Unix sont organisés en arbre : chaque processus a un parent, sauf le tout premier, **PID 1**.
+ 
+PID 1 (aussi appelé **init**) est l'ancêtre commun de tous les processus — c'est la fondation sur laquelle tous les autres tournent. Sur une machine classique, ce rôle est tenu par `init`/`systemd`, un vrai gestionnaire de processus.
+ 
+### Le cas particulier des containers Docker
+ 
+Un container **n'a pas de vrai `init`/`systemd`** par défaut. Le premier processus lancé dans le `CMD`/`ENTRYPOINT` devient automatiquement PID 1, qu'il soit conçu pour ce rôle ou non.
+ 
+→ Conséquence directe : ce PID 1 doit être capable de bien gérer les signaux d'arrêt, sinon le container ne s'arrête pas proprement.
+ 
+### Daemon vs foreground : le problème avec nginx
+ 
+**Par défaut, nginx tourne en mode daemon** : il se lance, puis se "fork" en arrière-plan et se détache du terminal — le process principal se termine, un process enfant continue de tourner en background, invisible.
+ 
+**Problème dans un container** : Docker est conçu pour faire tourner **un seul processus au premier plan (foreground)**. Si ce processus se termine (ou passe en arrière-plan comme le fait nginx par défaut), **Docker considère que le container a fini son travail et l'arrête**.
+ 
+→ Résultat sans intervention : le container nginx s'arrêterait quasi immédiatement après son lancement, alors que le vrai serveur nginx (en arrière-plan) continuerait de tourner un instant, invisible pour Docker.
+ 
+### La solution : `daemon off;`
+ 
+```dockerfile
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
+```
+ 
+- **`-g`** : passe une directive de configuration globale à nginx en ligne de commande.
+- **`daemon off;`** : dit à nginx de **ne pas** se daemoniser — il reste au premier plan.
+Résultat : nginx lui-même devient PID 1 du container, reste actif en foreground, et le container reste vivant tant que nginx tourne.
+ 
+### Pourquoi éviter les "hacky patches" (tail -f, sleep infinity, bash)
+ 
+Une mauvaise solution au même problème serait par exemple :
+```dockerfile
+CMD nginx && tail -f /dev/null
+```
+Ici, ce n'est plus nginx qui devient PID 1, mais `tail` (ou le shell qui exécute les deux commandes). `tail -f` ne sait pas gérer `SIGTERM`/`SIGQUIT` correctement, ne fait aucun "reaping" de processus enfants — le container devient difficile à arrêter proprement, et le vrai processus utile (nginx) est caché derrière un PID 1 qui ne sert à rien fonctionnellement.
+ 
+### Gestion des signaux : le cas SIGQUIT vs SIGTERM
+ 
+- Par défaut, quand on fait `docker stop`, **Docker envoie SIGTERM** au PID 1, attend 10 secondes (grace period), puis envoie SIGKILL si le processus ne s'est pas arrêté.
+- **nginx, lui, utilise SIGQUIT pour un arrêt gracieux** (il termine les requêtes en cours avant de quitter), pas SIGTERM.
+→ Sans configuration explicite, nginx recevrait un SIGTERM qu'il gère moins proprement qu'un SIGQUIT.
+ 
+**Solution : préciser le bon signal d'arrêt dans le Dockerfile**
+```dockerfile
+STOPSIGNAL SIGQUIT
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
+```
+ 
+### Forme "exec" vs forme "shell" pour CMD/ENTRYPOINT
+ 
+Toujours utiliser la **forme exec** (tableau JSON) plutôt que la forme shell, pour que le processus tourne directement en PID 1 et reçoive les signaux sans intermédiaire :
+ 
+```dockerfile
+# ✅ Forme exec — nginx devient directement PID 1
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
+ 
+# ❌ Forme shell — un shell intermédiaire devient PID 1,
+# nginx tourne en tant qu'enfant et ne reçoit pas les signaux directement
+ENTRYPOINT nginx -g "daemon off;"
+```
+ 
+### Résumé
+ 
+> "nginx devient PID 1 du container grâce à `daemon off;`, qui l'empêche de se daemoniser et de passer en arrière-plan. J'utilise la forme exec pour qu'il reçoive directement les signaux Docker, et j'ai précisé `STOPSIGNAL SIGQUIT` car c'est le signal que nginx attend pour un arrêt gracieux, plutôt que le SIGTERM envoyé par défaut par Docker."
+
+## 12. Vidéos / sources vues
 
 - [ ] TechWorld with Nana — Docker Crash Course For Absolute Beginners
 - Youssef medium 
 - [ ] https://medium.com/@mvuk/using-tls-certificates-with-nginx-docker-container-74c6769a26db
+- [ ] https://docs.docker.com/build/building/best-practices/
+- [ ] https://medium.com/@imyzf/inception-3979046d90a0
+- [ ] https://medium.com/@mvuk/using-tls-certificates-with-nginx-docker-container-74c6769a26db
+- [ ] https://docs.nginx.com/nginx/admin-guide/basic-functionality/runtime-control/
+- [ ] https://labex.io/questions/what-is-the-purpose-of-the-nginx-g-daemon-off-command-in--871954

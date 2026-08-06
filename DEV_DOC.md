@@ -41,6 +41,13 @@ sudo apt install -y curl make
 sudo usermod -aG docker $USER
 # log out/in (or reboot) for this to take effect
 ```
+⚠️ Important: This modification only takes effect on the next session login.
+Either disconnect and reconnect via SSH: exit then ssh doberes@<IP>
+Or apply it immediately in the current terminal: newgrp docker (or reboot the VM)
+Verify that docker appears in your group list:
+```bash
+groups
+```
 
 **Docker validation test:**
 ```bash
@@ -160,7 +167,55 @@ docker --version
 docker compose version
 docker run hello-world
 ```
- 
+
+## 12. Validating the Nginx Container
+
+Once the Nginx Dockerfile and configuration are ready, test the container independently before orchestrating with Docker Compose.
+
+### Step 1: Build and Run the Test Container
+
+```bash
+cd ~/Inception/srcs/requirements/nginx
+docker build -t nginx-test .
+docker run -d -p 443:443 --name test-nginx nginx-test
+```
+
+Verify that the container is running:
+```bash
+docker ps
+```
+
+
+### Step 2: CLI Validation inside the VM (curl)
+From inside the VM terminal, execute:
+```bash
+curl -k [https://doberes.42.fr](https://doberes.42.fr)
+```
+Note on -k: The flag is required to bypass SSL certificate verification since we are using a self-signed certificate generated via OpenSSL.
+
+Expected Result: The HTML output of your index.html page should be printed directly in the terminal.
+
+### Step 3: Browser Validation from the Mac (Host)
+
+1. Ensure the Mac's /etc/hosts contains the VM's IP mapping:
+```bash
+192.168.64.3    doberes.42.fr
+```
+
+2. Open Chrome/Safari/Firefox on the Mac and navigate to:
+[https://doberes.42.fr](https://doberes.42.fr)
+
+3. Bypass the SSL Warning: Since the certificate is self-signed, browsers will flag it as unsafe.
+- Chrome: Click Advanced → Proceed to doberes.42.fr (unsafe) (or type thisisunsafe directly on the page).
+- Safari: Click Show Details → Visit this website → confirm with TouchID / Password.
+- Firefox: Click Advanced → Accept the Risk and Continue.
+
+### Step 4 : Cleanup
+Always stop and remove the test container after validation to free port 443:
+```bash
+docker stop test-nginx && docker rm test-nginx
+```
+
 ## Build and launch the project
  
 <!-- Using the Makefile and Docker Compose -->

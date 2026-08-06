@@ -76,12 +76,12 @@ git config --global user.email "your_email@example.com"
 Get the VM's IP (from inside the VM):
 ```bash
 ip a
-# look for the inet line of the main interface, e.g. 192.168.64.3
+# look for the inet line of the main interface, e.g. 192.168.64.1
 ```
 
 Connect from the Mac's terminal:
 ```bash
-ssh doberes@192.168.64.3
+ssh doberes@192.168.64.1
 ```
 → Avoids having to use the UTM window (no convenient copy/paste in it).
 

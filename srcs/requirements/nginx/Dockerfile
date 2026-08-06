@@ -23,6 +23,9 @@ RUN mkdir -p /etc/nginx/ssl &&\
 # reverse proxy to the WordPress container on port 9000).
 COPY ./conf/nginx.conf /etc/nginx/sites-available/default
 
+# Copy the index.html file to the default web root.
+COPY ./html/index.html /var/www/html/index.html
+
 # Expose port 443 for HTTPS traffic.
 EXPOSE 443
 

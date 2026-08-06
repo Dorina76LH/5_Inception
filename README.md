@@ -19,48 +19,58 @@ built from a custom Dockerfile.
 <!-- Compilation / installation / execution: how to clone, configure secrets & .env, and run the project via the Makefile -->
  
 ## Project description
-
+ 
+### How Docker and Docker Compose work
+ 
 Docker is a solution for virtualizing the application layer, unlike a virtual machine, which virtualizes an entire
 operating system. Docker builds **images** (fixed, read-only templates) from Dockerfiles (build instructions), then
 runs these images as **containers** (isolated, running instances). Several containers can be started from the same
 image.
-
+ 
 Containers share the host machine's kernel instead of embedding a full one — this is what makes them significantly
 lighter and faster to start than a classic VM. On Mac/Windows, since there is no native Linux kernel, Docker Desktop
 embeds a lightweight Linux VM internally to provide one.
-
+ 
 **Docker Compose** orchestrates multiple containers from a single declarative file (`docker-compose.yml`): it defines
 services, their network, their volumes, and their startup dependencies, and allows building and launching everything
 with a single command (`docker compose up`) — instead of running a separate `docker run` command for each container
 and manually handling networking and dependencies.
-
+ 
 This makes it possible to provide, in an isolated and reproducible environment, the code, libraries, and dependencies
 required to run the application — avoiding the classic "it works on my machine" issue and simplifying configuration
 both in development and deployment.
-
+ 
+### Image used with vs without Docker Compose
+ 
 Without Docker Compose, each image has to be built and run manually through separate `docker build`/`docker run`
 commands: networks, volumes, environment variables, and the startup order between containers all have to be created
 and coordinated by hand.
-
+ 
 With Docker Compose, a single declarative file (`docker-compose.yml`) describes all services, their build context,
 network, volumes, and dependencies at once. A single command (`docker compose up --build`) builds and launches the
 entire stack. Compose also automatically creates a shared network with DNS resolution between services by name (e.g.
 the nginx container can reach the wordpress container simply via the hostname `wordpress`, no manual IP lookup
 needed), and the whole stack can be stopped or restarted consistently as one unit.
  
+### Base image choice
+ 
+All containers are built from **Debian 12 "Bookworm"**, the penultimate stable Debian release as required by the
+subject. Debian 13 "Trixie" became the current stable release in August 2025, which moved Debian 12 to "oldstable"
+status — it is still officially supported via LTS until June 2028.
+ 
 ### Virtual Machines vs Docker
  
 A VM virtualizes everything above the bare metal: kernel, OS, and applications, via a hypervisor. A container
 virtualizes only what sits above the OS — the application layer — and shares the host machine's kernel instead of
 embedding its own.
-
+ 
 As a result, a VM is slower to start (minutes) and takes up more disk space (GBs), while a container is lightweight
 (MBs) and starts almost instantly (seconds). Containers are also faster and easier to duplicate/share between users,
 and a single host can run far more containers than VMs, since containers don't each carry a full OS.
-
+ 
 The trade-off is isolation: because containers share the host kernel, their isolation (via namespaces and cgroups) is
 weaker than a VM's, which is isolated by the hypervisor at the hardware level. A VM therefore provides a stronger
-security boundary, while Docker trades some of that isolation for speed, density, and portability
+security boundary, while Docker trades some of that isolation for speed, density, and portability.
  
 ### Secrets vs Environment Variables
  

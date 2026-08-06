@@ -322,9 +322,92 @@ ENTRYPOINT nginx -g "daemon off;"
  
 ### Résumé
  
-> "nginx devient PID 1 du container grâce à `daemon off;`, qui l'empêche de se daemoniser et de passer en arrière-plan. J'utilise la forme exec pour qu'il reçoive directement les signaux Docker, et j'ai précisé `STOPSIGNAL SIGQUIT` car c'est le signal que nginx attend pour un arrêt gracieux, plutôt que le SIGTERM envoyé par défaut par Docker."
+> "nginx devient PID 1 du container grâce à `daemon off;`, qui l'empêche de se daemoniser et de passer en
+arrière-plan. J'utilise la forme exec pour qu'il reçoive directement les signaux Docker, et j'ai précisé `STOPSIGNAL
+SIGQUIT` car c'est le signal que nginx attend pour un arrêt gracieux, plutôt que le SIGTERM envoyé par défaut par
+Docker."
 
-## 12. Vidéos / sources vues
+---
+ 
+## 13. Dockerfile nginx — explication détaillée ligne par ligne
+ 
+### Base image
+ 
+```dockerfile
+FROM debian:12.15-slim
+```
+`-slim` = variante allégée de l'image Debian officielle (moins de paquets préinstallés que l'image standard) → image
+de base plus légère, on installe ensuite seulement ce dont on a besoin.
+ 
+### Installation nginx + openssl
+ 
+```dockerfile
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        nginx \
+        openssl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+```
+ 
+- **`apt-get update`** : met à jour la liste des paquets disponibles (index local), sans installer quoi que ce soit —
+nécessaire avant tout `install` pour connaître les dernières versions disponibles dans les dépôts.
+- **`apt-get install -y`** : `-y` répond automatiquement "oui" aux confirmations (nécessaire en mode non-interactif,
+dans un build Docker il n'y a personne pour taper "y" à la main).
+- **`--no-install-recommends`** : évite d'installer les paquets "recommandés" (souvent des extras non essentiels) en
+plus des dépendances strictement nécessaires → image plus légère.
+- **`nginx`** : le serveur web.
+- **`openssl`** : nécessaire pour générer le certificat TLS auto-signé (étape suivante) — pas pour nginx lui-même,
+qui a son propre support TLS intégré une fois compilé avec.
+- **`apt-get clean`** : vide le cache local des paquets `.deb` téléchargés (dans `/var/cache/apt/archives/`).
+- **`rm -rf /var/lib/apt/lists/*`** : supprime les listes d'index de paquets téléchargées par `apt-get update` —
+elles ne servent plus une fois l'installation terminée, et representent souvent plusieurs dizaines de Mo.
+**Pourquoi tout dans un seul `RUN` avec `&&`** : chaque `RUN` crée une layer Docker. Si le nettoyage (`clean`/`rm`)
+était dans un `RUN` séparé, les fichiers supprimés existeraient encore dans la layer précédente (celle de l'install)
+→ l'image finale resterait aussi lourde. En groupant tout dans un seul `RUN`, le nettoyage réduit réellement la
+taille de la layer finale.
+ 
+### Génération du certificat TLS auto-signé
+ 
+```dockerfile
+RUN mkdir -p /etc/nginx/ssl && \
+    openssl req -x509 -nodes -days 365 \
+        -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/inception.key \
+        -out /etc/nginx/ssl/inception.crt \
+        -subj "/C=FR/ST=IDF/L=Paris/O=42/OU=doberes/CN=doberes.42.fr"
+```
+ 
+- **`openssl req`** : commande pour créer une demande de certificat (CSR) — ici combinée avec `-x509` pour générer
+directement un certificat auto-signé plutôt qu'une simple demande à envoyer à une CA.
+- **`-x509`** : indique qu'on veut générer directement un certificat auto-signé (format X.509, le standard des
+certificats TLS), au lieu d'une simple requête de signature.
+- **`-nodes`** : "no DES" → la clé privée générée ne sera **pas chiffrée par un mot de passe**. Nécessaire ici car le
+conteneur doit pouvoir démarrer nginx automatiquement sans qu'un humain tape une passphrase à chaque lancement.
+- **`-days 365`** : durée de validité du certificat (1 an). Après cette période, le certificat expirerait et le
+navigateur afficherait une erreur de sécurité.
+- **`-newkey rsa:2048`** : génère une nouvelle paire de clés RSA de 2048 bits en même temps que la requête (taille
+standard, bon compromis sécurité/performance).
+- **`-keyout`** : chemin où écrire la clé privée générée.
+- **`-out`** : chemin où écrire le certificat public généré.
+- **`-subj "/C=.../ST=.../L=.../O=.../OU=.../CN=..."`** : renseigne directement en ligne de commande les informations
+du certificat (pays, région, ville, organisation, unité, **CN = Common Name = le nom de domaine couvert par le
+certificat**) — évite le mode interactif où openssl poserait ces questions une par une (impossible dans un build
+Docker non-interactif).
+  - **CN (`doberes.42.fr`) est le champ le plus important** : c'est ce que le navigateur/nginx compare au nom de
+domaine demandé pour valider que le certificat correspond bien au site.
+
+### Pourquoi un certificat auto-signé (et pas une vraie CA) ?
+ 
+`doberes.42.fr` n'est pas un vrai domaine public résolvable sur internet — c'est un domaine simulé localement via `
+etc/hosts`. Aucune autorité de certification publique (Let's Encrypt, etc.) ne peut/veut délivrer un certificat pour
+un domaine qu'elle ne peut pas vérifier publiquement. Un certificat auto-signé est donc la seule option pertinente
+ici — le navigateur affichera un avertissement de sécurité (normal et attendu), mais le chiffrement TLS fonctionne
+bel et bien.
+
+---
+
+## 14. Vidéos / sources vues
 
 - [ ] TechWorld with Nana — Docker Crash Course For Absolute Beginners
 - Youssef medium 

@@ -216,6 +216,10 @@ Always stop and remove the test container after validation to free port 443:
 docker stop test-nginx && docker rm test-nginx
 ```
 
+```bash
+docker ps
+```
+
 ## Build and launch the project
  
 <!-- Using the Makefile and Docker Compose -->

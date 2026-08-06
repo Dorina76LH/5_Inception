@@ -217,7 +217,8 @@ docker stop test-nginx && docker rm test-nginx
 ```
 
 ```bash
-docker ps
+docker ps -a
+curl -k https://doberes.42.fr
 ```
 
 ## Build and launch the project

@@ -133,13 +133,14 @@ git clone git@github.com:your_account/inception.git
 cd inception
 ```
 
-## 8. Current workflow
+### 8. Current workflow
 
-1. Code is edited locally on the Mac (VS Code)
-2. `git add / commit / push` from the Mac to GitHub
-3. Inside the VM (connected via SSH), `git pull` to fetch the code and test it with Docker
+- Code is edited locally on the Mac (VS Code)
+- `git add` / `commit` / `push` from the Mac to GitHub
+- Inside the VM (connected via SSH), `git pull` to fetch the code and test it with Docker
+- To improve later: VS Code Remote-SSH to edit directly inside the VM and avoid repeated push/pull cycles just to test a line of code. (Currently blocked by a Permission denied error, to be fixed.)
 
-> To improve later: VS Code Remote-SSH to edit directly inside the VM and avoid repeated push/pull cycles just to test a line of code. (Currently blocked by a `Permission denied` error, to be fixed.)
+⚠️ **Lesson learned**: keep `.gitignore` at the repository root, not in a subfolder (e.g. `srcs/`) — a `.gitignore` placed in a subfolder only matches paths relative to that subfolder, which silently breaks the ignore rules for files like `.env`.
 
 ## 9. VM shutdown / restart cycle
 
@@ -221,14 +222,96 @@ docker ps -a
 curl -k https://doberes.42.fr
 ```
 
+---
+
+## 13. MariaDB Container
+
+### Architecture
+
+The MariaDB service relies on 3 files working together:
+- `Dockerfile` — installs MariaDB, sets up permissions, copies the config and the startup script
+- `conf/mariadb.cnf` — network configuration of the server
+- `tools/mariadb-script.sh` — startup logic (used as `ENTRYPOINT`)
+
+### Configuration choices
+
+**`bind-address = 0.0.0.0`** — MariaDB listens on `127.0.0.1` by default, which would make it unreachable from other containers on the Docker network. This value opens listening on all network interfaces, required so WordPress can connect to it.
+
+### Startup script logic
+
+The script distinguishes two cases on container startup:
+1. **First launch**: the folder `/var/lib/mysql/${SQL_DATABASE}` does not exist yet in the volume → full initialization (system tables, creation of the application database, creation of a dedicated user, security hardening)
+2. **Restart**: the folder already exists (persistent volume) → direct startup without reinitializing, to avoid losing existing data
+
+This check is essential: without it, every container restart would wipe the database.
+
+### Security choices
+
+- Passwords (root, application user) are provided via environment variables (`.env`), never hardcoded in versioned code
+- A dedicated MySQL user is created for WordPress, with privileges limited to its own database (`GRANT ALL PRIVILEGES ON db.*`, no global access)
+- Anonymous accounts and the default `test` database are removed (standard post-install hardening)
+- The MariaDB process runs under the system user `mysql` (not root), via the permissions set in the Dockerfile on `/var/run/mysqld`
+
+### Foreground startup (PID 1)
+
+The script ends with `exec mysqld_safe ...` rather than a plain call. `exec` replaces the script's process with MariaDB's, allowing it to receive Docker's stop signals (`SIGTERM`) directly for a clean container shutdown.
+
+### Comparison — good vs bad practices observed in other student repos
+
+| ❌ To avoid (seen elsewhere) | ✅ Good practice (used here) |
+|---|---|
+| Hardcoded password in the script (`root4life`) | Passwords via environment variables (`.env`) |
+| `GRANT ALL ON *.*` for root with remote access (`@'%'`) | Dedicated user with privileges limited to one database |
+| `user = root` in the MariaDB config (process runs as root) | Process run under the system user `mysql` |
+| `debian:buster` (Debian 10, obsolete, no more security support) | `debian:12.15-slim` (Bookworm, penultimate stable) |
+
+**Possible improvement**: add `USER mysql` at the end of the Dockerfile (before `ENTRYPOINT`) so the process doesn't run as root by default. To be tested first, since `mysql_install_db` might require root privileges on the very first launch.
+
+---
+
 ## Build and launch the project
- 
-<!-- Using the Makefile and Docker Compose -->
- 
+
+The project is orchestrated with Docker Compose and driven through a root-level `Makefile`.
+
+```bash
+make          # build images and start all containers (detached)
+make build    # build images only
+make up       # start containers (detached)
+make down     # stop and remove containers
+make stop     # stop containers without removing them
+make start    # restart previously stopped containers
+make logs     # follow logs of all services
+make clean    # down + prune unused Docker resources
+make fclean   # clean + remove volumes and networks
+make re       # fclean + all (full rebuild)
+```
+
+The `Makefile` wraps `docker compose -f srcs/docker-compose.yml`, so the same commands work regardless of the current working directory (as long as run from the repo root).
+
 ## Managing containers and volumes
- 
-<!-- Relevant commands: docker compose ps/logs/exec, docker volume ls/inspect, etc. -->
- 
+
+Useful commands during development, once containers are orchestrated via Compose:
+
+```bash
+docker compose -f srcs/docker-compose.yml ps          # status of all services
+docker compose -f srcs/docker-compose.yml logs -f nginx    # follow logs of a specific service
+docker exec -it mariadb bash                           # shell into a running container
+```
+
+All services share a single Docker network (`inception`, bridge driver) defined in `docker-compose.yml`. This lets containers reach each other by service name (e.g. WordPress connects to `mariadb`, not to an IP address) — Docker Compose provides this name resolution automatically.
+
 ## Data storage and persistence
- 
-<!-- Where project data is stored (/home/login/data) and how it persists -->
+
+Containers are stateless by design: any data written inside a container's filesystem is lost when the container is removed (`docker rm` or `docker compose down`).
+
+To persist data across restarts and rebuilds, named Docker volumes are used:
+
+```yaml
+volumes:
+  mariadb_data:/var/lib/mysql
+```
+
+- `mariadb_data` — stores the MariaDB database files, so articles, users and WordPress configuration survive container recreation
+- (to add once WordPress is set up) a volume for `/var/www/html`, so uploaded media, themes and plugins persist as well
+
+Volumes are declared under the top-level `volumes:` key in `docker-compose.yml` and are managed independently of container lifecycle — they are only removed with an explicit `docker volume rm` or `make fclean`.

@@ -407,6 +407,149 @@ bel et bien.
 
 ---
 
+## 14. MariaDB — les 3 fichiers du service
+
+Le service MariaDB repose sur 3 fichiers qui travaillent ensemble : un fichier de config, un script de démarrage, et le Dockerfile qui assemble le tout.
+
+```
+Dockerfile  →  installe MariaDB + copie les 2 fichiers ci-dessous
+mariadb.cnf →  configuration du serveur (comment il écoute)
+mariadb-script.sh → logique de démarrage (créer la base au 1er lancement, ou juste redémarrer)
+```
+
+### 14.1 `mariadb.cnf` — fichier de configuration
+
+```ini
+[mysqld]
+
+# Allow connections from any host
+bind-address = 0.0.0.0
+
+# Set the default port for MariaDB
+port = 3306
+```
+
+| Ligne | Rôle |
+|---|---|
+| `[mysqld]` | Section qui configure le **serveur** MariaDB (par opposition à `[client]` qui configurerait un client en CLI) |
+| `bind-address = 0.0.0.0` | **Le plus important** : par défaut MariaDB n'écoute que sur `127.0.0.1` (localhost), donc invisible depuis l'extérieur du container. `0.0.0.0` = écoute sur toutes les interfaces réseau → permet à WordPress (autre container) de s'y connecter via le réseau Docker. Sans ça, aucune connexion externe possible. |
+| `port = 3306` | Port standard MySQL/MariaDB. Valeur par défaut, mais notée explicitement pour la lisibilité et pour montrer que c'est un choix conscient (utile en soutenance). |
+
+Ce fichier est copié dans le Dockerfile vers `/etc/mysql/mariadb.conf.d/60-custom.cnf` — MariaDB charge tous les `.cnf` de ce dossier dans l'ordre alphabétique, donc ce fichier vient s'ajouter à la config par défaut sans l'écraser.
+
+### 14.2 `mariadb-script.sh` — script de démarrage (ENTRYPOINT)
+
+**Rôle global** : au démarrage du container, décider si c'est la **première fois** (créer la base, l'utilisateur, sécuriser l'install) ou une **relance** (les données existent déjà dans le volume, juste redémarrer normalement).
+
+```bash
+#!/bin/bash
+set -e
+```
+`set -e` : arrête le script immédiatement si une commande échoue. Évite de continuer avec une base à moitié configurée en cas d'erreur.
+
+```bash
+if [ -d "/var/lib/mysql/${SQL_DATABASE}" ]; then
+    echo "INFO: La base de données existe déjà. Démarrage direct..."
+else
+    echo "INFO: Première installation de MariaDB. Configuration en cours..."
+```
+**Le cœur de la logique** : vérifie si le dossier de la base existe déjà dans `/var/lib/mysql` (monté en **volume persistant**). Sans cette vérification, chaque redémarrage du container réinitialiserait la base et perdrait toutes les données (articles WordPress, comptes utilisateurs, etc.).
+
+```bash
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
+```
+Initialise les tables système internes de MariaDB (gestion des users/permissions — pas encore la base applicative). `--user=mysql` : exécuté avec l'utilisateur système `mysql`, pas root (bonne pratique). `> /dev/null` masque la sortie verbeuse.
+
+```bash
+    mysqld_safe --datadir=/var/lib/mysql --user=mysql &
+```
+Démarre MariaDB **en arrière-plan temporaire** (`&`) — nécessaire pour pouvoir exécuter des commandes SQL dessus juste après (avant le vrai démarrage définitif en fin de script).
+
+```bash
+    until mysqladmin ping --silent; do
+        echo "En attente de MariaDB..."
+        sleep 1
+    done
+```
+**Attente active (polling)** : teste toutes les secondes si le serveur répond, avant de continuer. Le serveur lancé juste avant met un peu de temps à être prêt — sans cette attente, la commande SQL suivante échouerait en se connectant trop tôt.
+
+```bash
+    mariadb -u root <<EOF
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${SQL_ROOT_PASSWORD}';
+DELETE FROM mysql.user WHERE User='';
+DROP DATABASE IF EXISTS test;
+CREATE DATABASE IF NOT EXISTS \`${SQL_DATABASE}\`;
+CREATE USER IF NOT EXISTS '${SQL_USER}'@'%' IDENTIFIED BY '${SQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON \`${SQL_DATABASE}\`.* TO '${SQL_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF
+```
+Syntaxe **heredoc** : envoie tout ce bloc comme des commandes SQL au client `mariadb`, connecté en root (sans mot de passe à ce stade). Détail de chaque commande :
+- `ALTER USER root ...` : définit le mot de passe root, depuis une **variable d'environnement** (`.env`), jamais en dur dans le code
+- `DELETE FROM mysql.user WHERE User=''` : supprime les comptes "anonymes" créés par défaut (durcissement sécurité)
+- `DROP DATABASE test` : supprime la base `test` par défaut, accessible sans authentification stricte
+- `CREATE DATABASE ...` : crée la vraie base applicative pour WordPress
+- `CREATE USER ... @'%' ...` : crée un utilisateur **dédié** (pas root) pour WordPress. Le `@'%'` autorise la connexion depuis n'importe quelle IP — nécessaire car WordPress se connecte depuis un **autre container**
+- `GRANT ALL PRIVILEGES ON db.*` : donne tous les droits à cet utilisateur, mais **uniquement sur cette base précise** (principe de moindre privilège, pas un accès root global)
+- `FLUSH PRIVILEGES` : recharge les tables de permissions pour appliquer les changements immédiatement
+
+```bash
+    mysqladmin -u root -p"${SQL_ROOT_PASSWORD}" shutdown
+    wait
+```
+Arrête proprement l'instance temporaire. `wait` attend que le process en arrière-plan soit vraiment terminé avant de continuer, pour éviter un conflit avec le démarrage définitif juste après.
+
+```bash
+fi
+
+exec mysqld_safe --datadir=/var/lib/mysql --user=mysql
+```
+**Le vrai démarrage, en premier plan cette fois.** `exec` remplace le process du script bash par celui de `mysqld_safe` — important pour le PID 1 : ça permet à MariaDB de recevoir directement les signaux Docker (`SIGTERM` à l'arrêt), garantissant un arrêt propre du container.
+
+### 14.3 `Dockerfile` — assemblage
+
+```dockerfile
+RUN apt-get install -y --no-install-recommends \
+    mariadb-server \
+    mariadb-client \
+    procps
+```
+- `mariadb-server` : le serveur lui-même
+- `mariadb-client` : nécessaire pour exécuter les commandes SQL du script (`mariadb -u root ...`)
+- `procps` : utilitaires système (comme `ps`) parfois requis en interne par `mysqld_safe` pour surveiller les process — sans ce paquet, certains scripts internes de MariaDB peuvent échouer silencieusement
+
+```dockerfile
+RUN mkdir -p /var/run/mysqld && \
+    chown -R mysql:mysql /var/run/mysqld && \
+    chmod 777 /var/run/mysqld
+```
+Crée le dossier où MariaDB place son socket Unix et son fichier PID, avec les bonnes permissions pour l'utilisateur système `mysql`. Sans ça, le serveur planterait au démarrage, incapable d'écrire ses fichiers de contrôle.
+
+```dockerfile
+COPY ./conf/mariadb.cnf /etc/mysql/mariadb.conf.d/60-custom.cnf
+```
+Le "60" dans le nom permet de contrôler l'ordre de priorité si plusieurs fichiers `.cnf` coexistent dans ce dossier (chargés par ordre alphabétique).
+
+```dockerfile
+ENTRYPOINT ["/usr/local/bin/mariadb-script.sh"]
+```
+Le script devient le point d'entrée : il décide à chaque démarrage s'il faut initialiser une nouvelle base ou relancer sur des données existantes.
+
+### 14.4 Comparatif — bonnes vs mauvaises pratiques observées ailleurs
+
+En comparant avec d'autres implémentations trouvées sur GitHub (anciens élèves 42), quelques pièges à ne jamais reproduire :
+
+| ❌ À éviter (vu ailleurs) | ✅ Bonne pratique (fait chez moi) |
+|---|---|
+| Mot de passe en dur dans le script (`root4life`) | Mots de passe via variables d'environnement (`.env`) |
+| `GRANT ALL ON *.*` pour root en accès distant (`@'%'`) | Utilisateur dédié avec droits limités à une seule base |
+| `user = root` dans la conf MariaDB (process tourne en root) | Process lancé via l'utilisateur système `mysql` |
+| `debian:buster` (Debian 10, obsolète, fin de support) | `debian:12.15-slim` (Bookworm, avant-dernière stable) |
+
+**Piste d'amélioration possible** : ajouter `USER mysql` en fin de Dockerfile (avant l'`ENTRYPOINT`) pour que le process tourne en non-root — actuellement il tourne en root par défaut. À tester avant d'appliquer, car `mysql_install_db` pourrait nécessiter des droits root au tout premier lancement.
+
+---
+
 ## 14. Vidéos / sources vues
 
 - [ ] TechWorld with Nana — Docker Crash Course For Absolute Beginners

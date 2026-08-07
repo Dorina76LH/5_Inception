@@ -226,6 +226,72 @@ curl -k https://doberes.42.fr
 
 ## 13. MariaDB Container
 
+Once the MariaDB Dockerfile, config and startup script are ready, test the container independently before orchestrating with Docker Compose — same approach used for Nginx.
+
+**Step 1: Build the Test Image**
+```bash
+cd ~/Inception/srcs/requirements/mariadb
+docker build -t mariadb-test .
+```
+
+**Step 2: Run the Test Container**
+```bash
+docker run -d \
+  --name test-mariadb \
+  -e SQL_DATABASE=wordpress \
+  -e SQL_USER=wp_user \
+  -e SQL_PASSWORD=change_this_password \
+  -e SQL_ROOT_PASSWORD=change_this_root_password \
+  -v mariadb_test_data:/var/lib/mysql \
+  mariadb-test
+```
+
+Verify that the container is running (and stays up — this is the real test, since the startup script could crash right after initialization):
+```bash
+docker ps
+```
+
+**Step 3: Check the Logs**
+
+```bash
+docker logs test-mariadb
+```
+Expected output: `INFO: Première installation de MariaDB...` then `SUCCESS: Configuration initiale terminée.`, followed by the daemon starting in the foreground — no `chown: Operation not permitted` and no `Access denied` errors.
+
+**Step 4: Validate the Connection**
+
+```bash
+docker exec -it test-mariadb mariadb -u wp_user -p wordpress
+```
+(enter `SQL_PASSWORD` when prompted)
+
+Once on the `MariaDB [wordpress]>` prompt:
+```sql
+SHOW DATABASES;
+exit
+```
+The `wordpress` database should be listed.
+
+**Step 5: Cleanup**
+
+Always remove the test container and volume after validation, to start fresh for the next test:
+```bash
+docker stop test-mariadb && docker rm test-mariadb
+docker volume rm mariadb_test_data
+```
+
+#### ⚠️ Known issue: `USER mysql` breaks root authentication
+
+Adding `USER mysql` at the end of the Dockerfile (to make the container run as non-root) causes the startup script to fail with two errors:
+```
+chown: changing ownership of '/usr/lib/mysql/plugin/auth_pam_tool_dir/auth_pam_tool': Operation not permitted
+ERROR 1698 (28000): Access denied for user 'root'@'localhost'
+```
+
+**Root cause**: MariaDB's `root@localhost` account uses `unix_socket` authentication by default — it only allows a passwordless connection if the OS user attempting to connect is also named `root`. With `USER mysql` set at the Docker level, the entire container (including the script's `mariadb -u root` call) runs as the OS user `mysql`, not `root`, so the connection is rejected before a password is even involved. On top of that, `mysql_install_db` needs to `chown` some system files it doesn't already own, which also requires root.
+
+**Fix**: do not set `USER mysql` at the Dockerfile level. The startup script already drops privileges for the MariaDB *process* itself via the `--user=mysql` flag passed to `mysql_install_db` and `mysqld_safe` — that's the correct place to apply this, not a Docker-level `USER` instruction. The container's build/init steps still need root, only the running `mysqld` process needs to be `mysql`.
+
 ### Architecture
 
 The MariaDB service relies on 3 files working together:

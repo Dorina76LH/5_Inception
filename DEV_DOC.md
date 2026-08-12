@@ -178,7 +178,7 @@ Once the Nginx Dockerfile and configuration are ready, test the container indepe
 ```bash
 cd ~/Inception/srcs/requirements/nginx
 docker build -t nginx-test .
-docker run -d -p 443:443 --name test-nginx nginx-test
+docker run -d -p 443:443 --name nginx-test nginx-test
 ```
 
 Verify that the container is running:
@@ -237,7 +237,7 @@ docker build -t mariadb-test .
 **Step 2: Run the Test Container**
 ```bash
 docker run -d \
-  --name test-mariadb \
+  --name mariadb-test \
   -e SQL_DATABASE=wordpress \
   -e SQL_USER=wp_user \
   -e SQL_PASSWORD=change_this_password \
@@ -254,14 +254,14 @@ docker ps
 **Step 3: Check the Logs**
 
 ```bash
-docker logs test-mariadb
+docker logs mariadb-test
 ```
 Expected output: `INFO: Première installation de MariaDB...` then `SUCCESS: Configuration initiale terminée.`, followed by the daemon starting in the foreground — no `chown: Operation not permitted` and no `Access denied` errors.
 
 **Step 4: Validate the Connection**
 
 ```bash
-docker exec -it test-mariadb mariadb -u wp_user -p wordpress
+docker exec -it mariadb-test mariadb -u wp_user -p wordpress
 ```
 (enter `SQL_PASSWORD` when prompted)
 
@@ -276,7 +276,7 @@ The `wordpress` database should be listed.
 
 Always remove the test container and volume after validation, to start fresh for the next test:
 ```bash
-docker stop test-mariadb && docker rm test-mariadb
+docker stop mariadb-test && docker rm mariadb-test
 docker volume rm mariadb_test_data
 ```
 

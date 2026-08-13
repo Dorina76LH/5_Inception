@@ -54,8 +54,11 @@ groups
 sudo docker run hello-world
 ```
 
-## 4. SSH authentication to GitHub
+## 4. SSH authentication (GitHub & Vogosphere 42 Le Havre)
 
+The VM uses multi-key SSH configuration to seamlessly interact with both personnal GitHub repositories and the school's Vogosphere Git server.
+
+### 4.1. Github Key Setup (Personal)
 Algorithm used: **ED25519** (modern, fast, short key).
 
 ```bash
@@ -77,6 +80,62 @@ Configure git identity (so commits are properly attributed):
 git config --global user.name "Your Name"
 git config --global user.email "your_email@example.com"
 ```
+
+### 4.2. Vogosphere Setup (42 Le Havre)
+
+The school's Vogosphere key is generfated on the host machine during initial setup. It must be transferred to the VM without owervriting the personnal key.
+
+Step 1 : Copy keys from host to VM
+```bash
+scp ~/.ssh/id_rsa doberes@<VM_IP>:~/.ssh/id_vogsphere
+scp ~/.ssh/id_rsa.pub doberes@<VM_IP>:~/.ssh/id_vogsphere.pub
+```
+
+Step 2 : Set permissions inside the VM
+Inside the Debian VM terminal :
+```bash
+chmod 600 ~/.ssh/id_vogsphere
+chmod 644 ~/.ssh/id_vogsphere.pub
+```
+
+Step 3 : Configure ~/.ssh/config
+```bash
+nano ~/.ssh/config
+```
+
+Add the following configuration :
+```bash
+# Vogsphere (42 Le Havre)
+Host vogsphere.42lehavre.fr
+    HostName vogsphere.42lehavre.fr
+    User git
+    IdentityFile ~/.ssh/id_vogsphere
+
+# GitHub (Personal)
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Apply the strict permissions to the config file :
+```bash
+chmod 600 ~/.ssh/config
+```
+
+### 4.3 Connection Validation Tests
+From inside the VM
+```bash
+# Test 1: GitHub authentication
+ssh -T git@github.com
+# Expected: Hi <username>! You've successfully authenticated...
+
+# Test 2: Vogsphere authentication (42 Le Havre)
+ssh -T git@vogsphere.42lehavre.fr
+# Expected: Hi there, doberes! You've successfully authenticated...
+```
+
+⚠️ Note on VirtualBox Network: If vogsphere.42lehavre.fr returns Name or service not known, ensure the VirtualBox network adapter is set to Bridged Adapter (Accès par pont) so the VM can access the campus local DNS server.
 
 ## 5. SSH access to the VM from the Mac
 

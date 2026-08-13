@@ -255,11 +255,34 @@ Note on -k: The flag is required to bypass SSL certificate verification since we
 
 Expected Result: The HTML output of your index.html page should be printed directly in the terminal.
 
-### Step 3: Browser Validation from the Mac (Host)
+### Step 3: Browser Validation
 
-1. Ensure the Mac's /etc/hosts contains the VM's IP mapping:
+#### 1. Local DNS & IP Mapping
+
+##### Option A : Personnal Mas Host (with sudo access)
+If you have root privileges on your machine, edit `/etc/hosts` to map the VM's IP address:
 ```bash
 192.168.64.3    doberes.42.fr
+```
+
+##### Option B : $@ Capmus Linux Host (without sudo access)
+On school computers, modifying /etc/hosts is restricted due to lack of sudo privileges. To bypass this, launch Chrome with internal DNS resolver rules and a dedicated user profile directory:
+
+```bash
+# Launch Chrome with local DNS override and isolated profile directory:
+# - --host-resolver-rules: Forces Chrome to map 'doberes.42.fr' directly to the VM IP
+# - --user-data-dir: Spawns an isolated instance so flags are not ignored by background processes
+google-chrome --user-data-dir=/tmp/chrome_42 --host-resolver-rules="MAP doberes.42.fr 10.11.200.110" &
+```
+
+Convenience Alias (inception-web)
+```bash
+# Add alias to ~/.zshrc
+echo 'alias inception-web="google-chrome --user-data-dir=/tmp/chrome_42 --host-resolver-rules=\"MAP doberes.42.fr 10.11.200.110\" &"' >> ~/.zshrc
+source ~/.zshrc
+
+# Usage:
+inception-web
 ```
 
 2. Open Chrome/Safari/Firefox on the Mac and navigate to:

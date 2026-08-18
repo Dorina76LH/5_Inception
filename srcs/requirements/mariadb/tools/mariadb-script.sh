@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Lecture des secrets Docker (montés comme fichiers, pas comme variables d'env)
+# SQL_PASSWORD=$(cat /run/secrets/db_password)
+# SQL_ROOT_PASSWORD=$(cat /run/secrets/db_root_password)
+
 # Vérifier si la base de données existe déjà dans le volume
 if [ -d "/var/lib/mysql/${SQL_DATABASE}" ]; then
     echo "INFO: La base de données existe déjà. Démarrage direct..."

@@ -28,11 +28,11 @@ data_dirs:
 # ---------------------------------------------------------
 
 # Default target : create data directories and start all containers in detached mode
-all: data_dirs up
+all: up
 
 # Build images (if needed) and start containers in the background
 # Containers keep running after the command ends.
-up:
+up: data_dirs
 	@echo "Starting Inception ..."
 	$(COMPOSE) up --build -d
 
@@ -78,7 +78,7 @@ clean:
 # directories are deleted from disk.
 fclean: clean
 	@echo "Removing local data directories ..."
-	rm -rf $(DATA_DIR)
+	sudo rm -rf $(DATA_DIR)
 
 # Full reset: fclean than rebuild everything from scratch
 re: fclean all

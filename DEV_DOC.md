@@ -301,13 +301,30 @@ ssh -T git@vogsphere.42lehavre.fr
 
 ---
 
-# VSCode / Remote-SSH — under investigation
+# VSCode / Remote-SSH (Microsoft)
 
-Two options considered for editing code inside a VM without duplicating the setup on every environment:
-- Install VS Code directly inside the VM (needs the GUI, already in place on the School VM) — self-contained but adds resource usage
-- Keep VS Code on the host and use the **Remote-SSH** extension to edit files inside the VM remotely — lighter, avoids repeated push/pull cycles just to test a line of code
+**Goal**: edit code directly inside the VM without duplicating the local setup, and without repeated push/pull cycles just to test a single line.
 
-Currently blocked by a `Permission denied` error on Remote-SSH — investigating the extension as a way to lighten the School VM install (avoid a full local VS Code install on top of XFCE + Firefox).
+Two options were considered:
+- Install VS Code directly inside the VM — self-contained, but requires a desktop environment and adds resource usage on a VM meant to stay lightweight (headless, no GUI, Docker-only).
+- Keep VS Code on the host and use the **Remote-SSH** extension to edit files inside the VM remotely — lighter, no GUI needed inside the VM, avoids repeated push/pull cycles.
+
+The Remote-SSH approach was chosen.
+
+## Setup
+1. Install the **"Remote-SSH"** extension (published by Microsoft) in the host's VS Code.
+2. Open the Command Palette (`View > Command Palette`, or `Cmd/Ctrl+Shift+P`) → **Remote-SSH: Add New SSH Host** → enter: 'ssh doberes@10.11.200.110'
+3. Choose which SSH config file to save the host to. This adds an entry to VS Code's SSH config, e.g.:
+  
+    
+  ```bash
+  Host 10.11.200.110
+  HostName 10.11.200.110
+  User doberes
+  ```
+4. Open the Command Palette again → **Remote-SSH: Connect to Host** → select `10.11.200.110` → enter the password when prompted.
+5. Once connected, `Open Folder` to browse and edit the project files directly inside the VM.
+
 
 ---
 
@@ -497,6 +514,14 @@ The script ends with `exec mysqld_safe ...` rather than a plain call. `exec` rep
 | `debian:buster` (Debian 10, obsolete, no more security support) | `debian:12.15-slim` (Bookworm, penultimate stable) |
 
 **Possible improvement**: add `USER mysql` at the end of the Dockerfile (before `ENTRYPOINT`) so the process doesn't run as root by default. To be tested first, since `mysql_install_db` might require root privileges on the very first launch.
+
+---
+
+# Makefile & Docker compose
+
+docker volume ls
+docker volume inspect inception_mariadb_data
+docker volume inspect inception_wordpress_data
 
 ---
 

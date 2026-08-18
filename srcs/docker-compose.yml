@@ -1,22 +1,29 @@
 services:
 
-# ---------------------------------------------------------
-# NGINX
-# ---------------------------------------------------------
-  nginx:
+#? ---------------------------------------------------------
+#? MARIADB
+#? ---------------------------------------------------------
+
+  mariadb:
+    container_name: inception_mariadb
     build:
-      context: ./requirements/nginx
-    image: nginx
-    container_name: nginx
-    restart: unless-stopped
-    ports:
-      - "443:443"
-    volumes:
-      - wordpress_data:/var/www/html
-    networks:
-      - inception
+      context: ./requirements/mariadb
+      dockerfile: Dockerfile
+    image: mariadb
     env_file:
       - .env
+    restart: unless-stopped
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - inception_network
+    secrets:
+      - db_password
+      - db_root_password
+
+#? ---------------------------------------------------------
+#? WORDPRESS - depends on mariadb
+#? ---------------------------------------------------------
 
   # wordpress:
   #   build:
@@ -33,25 +40,38 @@ services:
   #   secrets:
   #     - db_password
 
-  # mariadb:
-  #   build:
-  #     context: ./requirements/mariadb
-  #   image: mariadb
-  #   container_name: mariadb
-  #   restart: unless-stopped
-  #   volumes:
-  #     - mariadb_data:/var/lib/mysql
-  #   networks:
-  #     - inception
-  #   env_file:
-  #     - .env
-  #   secrets:
-  #     - db_password
-  #     - db_root_password
+#? ---------------------------------------------------------
+#? NGINX - depends on wordpress
+#? ---------------------------------------------------------
+  nginx:
+    container_name: inception_nginx
+    build:
+      context: ./requirements/nginx
+      dockerfile: Dockerfile
+    image: nginx
+    env_file:
+      - .env
+    # depends_on:
+    #  - wordpress
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception_network
+    restart: unless-stopped
+
+# ---------------------------------------------------------
+# NETWORKS
+# ---------------------------------------------------------
 
 networks:
-  inception:
+  inception_network:
     driver: bridge
+
+# ---------------------------------------------------------
+# VOLUMES
+# ---------------------------------------------------------
 
 volumes:
   wordpress_data:
@@ -67,8 +87,12 @@ volumes:
       o: bind
       device: /home/doberes/data/mariadb
 
-# secrets:
-#   db_password:
-#     file: ../secrets/db_password.txt
-#   db_root_password:
-#     file: ../secrets/db_root_password.txt
+# ---------------------------------------------------------
+# SECRETS
+# ---------------------------------------------------------
+
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
+  db_root_password:
+    file: ../secrets/db_root_password.txt

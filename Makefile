@@ -20,19 +20,57 @@ DATA_DIR			= /home/$(LOGIN)/data
 
 # Create the host directories for MariaDB and WordPress persistent data
 data_dirs:
-	@mkdir -p $(DATA_DIR)/mariadb
-	@mkdir -p $(DATA_DIR)/wordpress
+	@if [ ! -d $(DATA_DIR)/mariadb ] || [ ! -d $(DATA_DIR)/wordpress ]; then \
+		mkdir -p $(DATA_DIR)/mariadb $(DATA_DIR)/wordpress; \
+		echo "Directories created for MariaDB and WordPress persistent data..."; \
+	else \
+		echo "Data directories already exist, skipping..."; \
+	fi
+
+# Create .env from .env_example if it does not exist
+env_file:
+	@if [ ! -f srcs/.env ]; then \
+			cp srcs/.env_example srcs/.env; \
+			chmod 600 srcs/.env ;\
+			echo "Empty .env file created (chmod 600)..."; \
+	else \
+			echo ".env already exists, skipping..."; \
+	fi
+
+# Create secret files
+secret_files:
+	@mkdir -p secrets
+	@chmod 700 secrets
+	@if [ ! -f secrets/db_password.txt ] || [ ! -f secrets/db_root_password.txt ] || [ ! -f secrets/credentials.txt ]; then \
+		touch secrets/db_password.txt; \
+		touch secrets/db_root_password.txt; \
+		touche secrets/credentials.txt; \
+		chmod 600 secrets/db_password.txt; \
+		chmod 600 secrets/db_root_password.txt; \
+		chmod 600 secrets/credentials.txt; \
+		echo "Empty secret files created (chmod 600)..."; \
+	else \
+		echo "Secret files already exist, skipping..."; \
+	fi
+
+# 	@touch secrets/db_password.txt
+# 	@touch secrets/db_root_password.txt
+# 	@touch secrets/credentials.txt
+# 	@chmod 600 secrets/db_password.txt
+# 	@chmod 600 secrets/db_root_password.txt
+# 	@chmod 600 secrets/credentials.txt
+# 	@echo "Empty secret files created (chmod 600)..."
 
 # ---------------------------------------------------------
 # Build and start containers
 # ---------------------------------------------------------
 
-# Default target : create data directories and start all containers in detached mode
+# Default target : start all containers in detached mode
 all: up
 
 # Build images (if needed) and start containers in the background
 # Containers keep running after the command ends.
-up: data_dirs
+up:
 	@echo "Starting Inception ..."
 	$(COMPOSE) up --build -d
 
@@ -41,6 +79,11 @@ up: data_dirs
 start:
 	@echo "Starting Inception ..."
 	$(COMPOSE) start
+
+# Create ddata dirs, .env and secret files
+init : data_dirs env_file secret_files
+	@echo "Initialization complete : fill in .env and secret files then launch 'make up'"
+
 
 # ---------------------------------------------------------
 # Stop and remove containers
@@ -98,4 +141,4 @@ ps :
 # ---------------------------------------------------------
 # Rules
 # ---------------------------------------------------------
-.PHONY: all up down stop start restart clean fclean re data_dirs logs ps
+.PHONY: all up init down stop start restart clean fclean re data_dirs secret_files env_file logs ps

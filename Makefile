@@ -44,7 +44,7 @@ secret_files:
 	@if [ ! -f secrets/db_password.txt ] || [ ! -f secrets/db_root_password.txt ] || [ ! -f secrets/credentials.txt ]; then \
 		touch secrets/db_password.txt; \
 		touch secrets/db_root_password.txt; \
-		touche secrets/credentials.txt; \
+		touch secrets/credentials.txt; \
 		chmod 600 secrets/db_password.txt; \
 		chmod 600 secrets/db_root_password.txt; \
 		chmod 600 secrets/credentials.txt; \
@@ -53,20 +53,12 @@ secret_files:
 		echo "Secret files already exist, skipping..."; \
 	fi
 
-# 	@touch secrets/db_password.txt
-# 	@touch secrets/db_root_password.txt
-# 	@touch secrets/credentials.txt
-# 	@chmod 600 secrets/db_password.txt
-# 	@chmod 600 secrets/db_root_password.txt
-# 	@chmod 600 secrets/credentials.txt
-# 	@echo "Empty secret files created (chmod 600)..."
-
 # ---------------------------------------------------------
 # Build and start containers
 # ---------------------------------------------------------
 
 # Default target : start all containers in detached mode
-all: up
+all: init up
 
 # Build images (if needed) and start containers in the background
 # Containers keep running after the command ends.

@@ -19,8 +19,8 @@ RUN mkdir -p /var/run/mysqld && \
 COPY ./conf/mariadb.cnf /etc/mysql/mariadb.conf.d/60-custom.cnf
 
 # Copy the startup script to the container and set execute permissions.
-COPY ./tools/mariadb-script.sh /usr/local/bin/mariadb-script.sh
-RUN chmod +x /usr/local/bin/mariadb-script.sh
+COPY ./tools/mariadb-setup.sh /usr/local/bin/mariadb-setup.sh
+RUN chmod +x /usr/local/bin/mariadb-setup.sh
 
 # Expose default port to MariaDB server for external access.
 EXPOSE 3306

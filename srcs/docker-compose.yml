@@ -5,11 +5,11 @@ services:
 #? ---------------------------------------------------------
 
   mariadb:
-    container_name: mariadb
+    container_name: inception-mariadb
     build:
       context: ./requirements/mariadb
       dockerfile: Dockerfile
-    image: inception-mariadb
+    image: mariadb
     env_file:
       - .env
     restart: unless-stopped
@@ -26,11 +26,11 @@ services:
 #? ---------------------------------------------------------
 
   # wordpress:
-  #   container_name: wordpress
+  #   container_name: inception-wordpress
   #   build:
   #     context: ./requirements/wordpress
   #     dockerfile: Dockerfile
-  #   image: inception-wordpress
+  #   image: wordpress
   #   env_file:
   #     - .env
   #   depends_on:
@@ -47,11 +47,11 @@ services:
 #? NGINX - depends on wordpress
 #? ---------------------------------------------------------
   nginx:
-    container_name: nginx
+    container_name: inception-nginx
     build:
       context: ./requirements/nginx
       dockerfile: Dockerfile
-    image: inception-nginx
+    image: nginx
     env_file:
       - .env
     # depends_on:

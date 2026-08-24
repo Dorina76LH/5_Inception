@@ -4,19 +4,58 @@ User doc · MD
  
 ## Services provided
  
-<!-- Understand what services are provided by the stack: NGINX, WordPress + php-fpm, MariaDB, bonus services -->
+The infrastructure runs as a set of isolated Docker containers orchestrated via Docker Compose:
+- **NGINX:** Reverse proxy enforcing HTTPS/TLS (v1.2 or v1.3 only) on port 443. Serves static content and forwards PHP requests.
+- **WordPress + PHP-FPM:** Web application processing dynamic requests and interacting with the database.
+- **MariaDB:** Relational database management system storing all WordPress data (tables, posts, configurations, users).
  
 ## Start and stop the project
  
-<!-- How to start and stop the project (make, make down, docker compose commands) -->
+- make / make up
+- make down
+- make re
+- make clean / make fclean
  
 ## Access the website and the administration panel
  
-<!-- URL of the website, URL of the WordPress admin panel -->
+- **Main site:** [https://doberes.42.fr](https://doberes.42.fr)
+- **WordPress Admin Panel:** [https://doberes.42.fr/wp-login.php](https://doberes.42.fr/wp-login.php)
+- **Adminer Panel (Bonus):** [https://doberes.42.fr/adminer](https://doberes.42.fr/adminer)
  
 ## Locate and manage credentials
  
-<!-- Where credentials live (secrets/, .env), how to find/change them -->
+Sensible data and environment variables are split into two locations:
+- **Environment variables (srcs/.env)** : Defines domain names, database names, non-sensitive username variables (WP_ADMIN_USER, WP_USER), and volume mount paths.
+
+```bash
+.env_example
+# DOMAIN NAME
+# ---------------------------
+DOMAIN_NAME=login.42.fr
+
+# MYSQL SETUP
+# ---------------------------
+SQL_DATABASE=xxxx
+SQL_USER=xxxx
+
+# WORDPRESS SETUP
+# ---------------------------
+WP_TITLE=xxxx
+WP_ADMIN_USER=xxxx
+WP_ADMIN_EMAIL=xxxx
+WP_USER=xxxx
+WP_USER_EMAIL=xxxx
+```
+
+- **Docker Secrets (secrets/ directory)**: Contains plain text files reading sensitive passwords mounted directly into containers at runtime:
+1. secrets/db_password.txt: Database user password.
+2. secrets/db_root_password.txt: MariaDB root password.
+3. secrets/credentials.txt: WordPress administrative users credentials.
+```bash
+credentials
+WP_ADMIN_PASSWORD=xxx
+WP_USER_PASSWORD=xxx
+```
  
 ## Check that the services are running correctly
  
@@ -95,3 +134,19 @@ make up
 docker exec -it inception-mariadb mariadb -u wp_user -p wordpress -e "SHOW DATABASES;"
 ```
 The `wordpress` database must still be present, without triggering a new initialization (check the mariadb container logs: it should log that the database already exists, not run the first-setup routine again).
+
+make init
+fill e.nv and secret files
+.env_exemple content
+secrets content
+
+make up
+
+Go to : https://doberes.42.fr/wp-login.php
+connection : wp_admin_user / wp_admin_mp
+w -> users -> check if the users BossQuiDechire(admin) & AgentSmith(author) are int DB
+
+check the data persitance : add a comment / a new site ...etc make down make up check if the modification is always there
+
+check ssl/http certificate
+lock -> certificate ->  autosigne -> affiche les infos CN=doberes O=42 TLSv1.2 ou TLSv1.3

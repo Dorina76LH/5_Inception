@@ -26,5 +26,4 @@ RUN chmod +x /usr/local/bin/mariadb-setup.sh
 EXPOSE 3306
 
 # Execute startup script to initialize the database and start the MariaDB server.
-#USER mysql
 ENTRYPOINT ["/usr/local/bin/mariadb-setup.sh"]

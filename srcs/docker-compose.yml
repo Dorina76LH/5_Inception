@@ -66,6 +66,27 @@ services:
     restart: unless-stopped
 
 # ---------------------------------------------------------
+# MARIA DB ADMIN - depends on mariadb
+# ---------------------------------------------------------
+  # adminer:
+  #   container_name: inception-adminer
+  #   build:
+  #     context: ./requirements/bonus/adminer
+  #     dockerfile: Dockerfile
+  #   image: adminer:1.0
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #    - mariadb
+  #   ports:
+  #     - "8080"
+  #   volumes:
+  #     - wordpress_data:/var/www/html
+  #   networks:
+  #     - inception_network
+  #   restart: unless-stopped
+
+# ---------------------------------------------------------
 # NETWORKS
 # ---------------------------------------------------------
 

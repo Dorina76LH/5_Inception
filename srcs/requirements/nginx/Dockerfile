@@ -24,7 +24,7 @@ RUN mkdir -p /etc/nginx/ssl &&\
 COPY ./conf/nginx.conf /etc/nginx/sites-available/default
 
 # Copy the index.html file to the default web root.
-COPY ./html/index.html /var/www/html/index.html
+#COPY ./html/index.html /var/www/html/index.html
 
 # Expose port 443 for HTTPS traffic.
 EXPOSE 443

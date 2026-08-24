@@ -14,6 +14,7 @@ RUN apt-get update && \
         php8.2-xml \
         php8.2-zip \
         curl \
+        ca-certificates \
         mariadb-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -29,7 +30,9 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
 # runs as. Without this, php-fpm cannot write to WordPress files
 # (uploads, plugin installs, etc.).
 RUN mkdir -p /var/www/html && \
-    chown -R www-data:www-data /var/www/html
+    mkdir -p /run/php && \
+    chown -R www-data:www-data /var/www/html && \
+    chown -R www-data:www-data /run/php
 
 # Adjust php-fpm's pool configuration:
 # - listen = 9000 (instead of a local Unix socket) so the nginx
@@ -44,7 +47,7 @@ RUN sed -i \
     /etc/php/8.2/fpm/pool.d/www.conf
 
 # Copy the wordpress setup script to the container and set execute permissions.
-COPY ./tools/wordpress-setip.sh /usr/local/bin/wordpress-setup.sh
+COPY ./tools/wordpress-setup.sh /usr/local/bin/wordpress-setup.sh
 RUN chmod +x /usr/local/bin/wordpress-setup.sh
 
 # Expose port 9000 for php-fpm to listen on, so the nginx container can

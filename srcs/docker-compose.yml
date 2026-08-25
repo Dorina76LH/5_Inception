@@ -57,6 +57,7 @@ services:
       - .env
     depends_on:
      - wordpress
+     - adminer
     ports:
       - "443:443"
     volumes:
@@ -66,25 +67,34 @@ services:
     restart: unless-stopped
 
 # ---------------------------------------------------------
-# MARIA DB ADMIN - depends on mariadb
+# MARIA DB ADMINER (Bonus) - depends on mariadb
 # ---------------------------------------------------------
-  # adminer:
-  #   container_name: inception-adminer
-  #   build:
-  #     context: ./requirements/bonus/adminer
-  #     dockerfile: Dockerfile
-  #   image: adminer:1.0
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #    - mariadb
-  #   ports:
-  #     - "8080"
-  #   volumes:
-  #     - wordpress_data:/var/www/html
-  #   networks:
-  #     - inception_network
-  #   restart: unless-stopped
+  adminer:
+    container_name: inception-adminer
+    build:
+      context: ./requirements/bonus/adminer
+      dockerfile: Dockerfile
+    image: adminer:1.0
+    env_file:
+      - .env
+    depends_on:
+     - mariadb
+    networks:
+      - inception_network
+    restart: unless-stopped
+
+# ---------------------------------------------------------
+# STATIC WEBSITE (Bonus)
+# ---------------------------------------------------------
+  adminer:
+    container_name: inception-static-website
+    build:
+      context: ./requirements/bonus/static_website
+      dockerfile: Dockerfile
+    image: static-website:1.0
+    networks:
+      - inception_network
+    restart: unless-stopped
 
 # ---------------------------------------------------------
 # NETWORKS

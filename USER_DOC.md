@@ -59,7 +59,8 @@ Credentials are never stored in the Git repository. They live in two places, bot
 - **`secrets/`** — sensitive values, one file per credential:
   - `secrets/db_password.txt` — MariaDB application user password
   - `secrets/db_root_password.txt` — MariaDB root password
-  - `secrets/credentials.txt` — WordPress admin and regular user passwords
+  - `secrets/wp_admin_passsword.txt` — WordPress admin
+  - `secrets/wp_user_password.txt` - WordPress regular user passwords
 These files are created empty by `make init` and must be filled in manually before the first `make up`.
  
 ## Check that the services are running correctly
@@ -119,7 +120,7 @@ This must fail with `Connection refused`.
  
 Open `https://doberes.42.fr` in a browser: the site must display actual WordPress content (e.g. the default "Hello world!" post with the configured site title), **not** the WordPress installation wizard.
  
-Log in to the admin panel at `https://doberes.42.fr/wp-admin` with the administrator account (see `secrets/credentials.txt` for the password, `WP_ADMIN_USER` in `.env` for the username).
+Log in to the admin panel at `https://doberes.42.fr/wp-admin` with the administrator account (see `secrets/wp_admin_password.txt` for the password, `WP_ADMIN_USER` in `.env` for the username).
  
 From the dashboard:
 - Edit an existing page or post, save it, and confirm the change appears on the live site.

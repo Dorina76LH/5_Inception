@@ -44,10 +44,12 @@ secret_files:
 	@if [ ! -f secrets/db_password.txt ] || [ ! -f secrets/db_root_password.txt ] || [ ! -f secrets/credentials.txt ]; then \
 		touch secrets/db_password.txt; \
 		touch secrets/db_root_password.txt; \
-		touch secrets/credentials.txt; \
+		touch secrets/wp_admin_password.txt; \
+		touch secrets/wp_user_password.txt; \
 		chmod 600 secrets/db_password.txt; \
 		chmod 600 secrets/db_root_password.txt; \
-		chmod 600 secrets/credentials.txt; \
+		chmod 600 secrets/wp_admin_password; \
+		chmod 600 secrets/wp_user_password; \
 		echo "Empty secret files created (chmod 600)..."; \
 	else \
 		echo "Secret files already exist, skipping..."; \

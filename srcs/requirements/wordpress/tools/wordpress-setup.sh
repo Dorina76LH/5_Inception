@@ -6,8 +6,8 @@ echo "INFO: Starting WordPress setup..."
 # --- STEP 1 : Read Docker secrets (mounted as files, not env vars) ---
 echo "INFO: Reading Docker secrets..."
 SQL_PASSWORD=$(cat /run/secrets/db_password)
-WP_ADMIN_PASSWORD=$(grep WP_ADMIN_PASSWORD /run/secrets/credentials | cut -d '=' -f2)
-WP_USER_PASSWORD=$(grep WP_USER_PASSWORD /run/secrets/credentials | cut -d '=' -f2)
+WP_ADMIN_PASSWORD=$(cat /run/secrets/wp_admin_password)
+WP_USER_PASSWORD=$(cat /run/secrets/wp_user_password)
 
 # --- STEP 2 : Wait for MariaDB to be ready ---
 # Wordpress will fail to install if the database is not ready,

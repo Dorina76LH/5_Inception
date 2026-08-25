@@ -30,7 +30,8 @@ From the root of the repository:
 nano srcs/.env          # domain name, database name, etc.
 nano secrets/db_password.txt
 nano secrets/db_root_password.txt
-nano secrets/credentials.txt
+nano secrets/wp_admin_password.txt
+nano secrest/wp_user_password.txt
 ```
 
 Then, still from the root of the repository, point the domain name to the VM's IP address (on the host machine, in `/etc/hosts`, or via a browser flag if `sudo` is unavailable — see DEV_DOC for both cases):

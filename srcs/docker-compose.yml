@@ -56,8 +56,9 @@ services:
     env_file:
       - .env
     depends_on:
-     - wordpress
-     - adminer
+      - wordpress
+      - adminer
+      - static-website
     ports:
       - "443:443"
     volumes:
@@ -86,7 +87,7 @@ services:
 # ---------------------------------------------------------
 # STATIC WEBSITE (Bonus)
 # ---------------------------------------------------------
-  adminer:
+  static-website:
     container_name: inception-static-website
     build:
       context: ./requirements/bonus/static_website

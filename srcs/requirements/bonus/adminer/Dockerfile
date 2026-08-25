@@ -15,7 +15,7 @@ RUN apt-get update && \
 RUN mkdir -p /var/www/adminer
 
 # Download Adminer and place it in the web root.
-RUN curl -L fsSL https://www.adminer.org/latest-mysql-en.php -o /var/www/adminer/index.php
+RUN curl -fsSL https://www.adminer.org/latest-mysql-en.php -o /var/www/adminer/index.php
 
 # Expose port 8080 for the web server.
 EXPOSE 8080

@@ -5,6 +5,8 @@ FROM debian:12.15-slim
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nginx \
+        curl \
+        ca-certificates \
         openssl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

@@ -11,10 +11,11 @@ RUN apt-get update && \
 WORKDIR /var/www/static
 
 # Copy the cv page into the container
-COPY ./html/ .
+COPY ./html/index.html .
+COPY ./html/cv.pdf .
 
 # Expose port 5000 for the web server.
-EXPOSE 8080
+EXPOSE 5000
 
 # Python's built-in HTTP server will serve the static files in the current directory.
-ENTRYPOINT ["python3", "-m", "http.server", "8080"]
+ENTRYPOINT ["python3", "-m", "http.server", "5000"]

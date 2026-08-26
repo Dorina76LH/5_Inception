@@ -1,7 +1,6 @@
 # ===== Secrets =====
 # Ignore files that may contain sensitive information, such as API keys, passwords, or other credentials
 srcs/.env
-secrets/credentials.txt
 secrets/db_password.txt
 secrets/db_root_password.txt
 secrets/wp_admin_password.txt

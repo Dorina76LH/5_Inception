@@ -41,7 +41,7 @@ env_file:
 secret_files:
 	@mkdir -p secrets
 	@chmod 700 secrets
-	@if [ ! -f secrets/db_password.txt ] || [ ! -f secrets/db_root_password.txt ] || [ ! -f secrets/credentials.txt ]; then \
+	@if [ ! -f secrets/db_password.txt ] || [ ! -f secrets/db_root_password.txt ] || [ ! -f secrets/wp_admin_password.txt ] || [ ! -f secrets/wp_user_password.txt ]; then \
 		touch secrets/db_password.txt; \
 		touch secrets/db_root_password.txt; \
 		touch secrets/wp_admin_password.txt; \

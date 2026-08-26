@@ -1,7 +1,7 @@
 # Developer Documentation
 
 ## Table of contents
- 
+
 - [Environment setup — VM (UTM + Debian)](#environment-setup--vm-utm--debian)
 - [Environment setup — School VM (VirtualBox + Debian)](#environment-setup--school-vm-virtualbox--debian)
 - [SSH Authentication (GitHub & Vogsphere)](#ssh-authentication-github--vogsphere)
@@ -16,7 +16,7 @@
 - [Managing containers and volumes](#managing-containers-and-volumes)
 - [Data storage and persistence](#data-storage-and-persistence)
 - [Ports and routing](#ports-and-routing)
-- [PHP vs php-fpm](#PHP-vs-php-fpm)
+- [PHP vs php-fpm](#php-vs-php-fpm)
 
 ---
 
@@ -142,9 +142,8 @@ cd inception
 - `git add` / `commit` / `push` from the Mac to GitHub
 - Inside the VM (connected via SSH), `git pull` to fetch the code and test it with
 Docker
-- To improve later: VS Code Remote-SSH to edit directly inside the VM and avoid
-repeated push/pull cycles just to test a line of code. (Currently blocked by a
-Permission denied error — see "VSCode / Remote-SSH" below, being investigated)
+- Editing directly inside the VM without push/pull cycles is now handled via VS Code
+Remote-SSH — see "VSCode / Remote-SSH" below.
 
 ⚠️ **Lesson learned**: keep `.gitignore` at the repository root, not in a subfolder
 (e.g. `srcs/`) — a `.gitignore` placed in a subfolder only matches paths relative to
@@ -255,9 +254,9 @@ sudo reboot
 **Validated**: after a reboot, the graphical desktop (mouse, XFCE desktop, Firefox)
 is working — successfully logged into the intra42 website from inside the VM.
 
-**Next step being investigated**: whether a lighter alternative (VS Code Remote-SSH
-from the host, instead of installing VS Code inside the VM) can reduce the resource
-footprint of this graphical setup — see "VSCode / Remote-SSH" below.
+**Resolved**: VS Code Remote-SSH (from the host) is now used instead of installing
+VS Code inside the VM, keeping this VM's footprint limited to XFCE + Firefox — see
+"VSCode / Remote-SSH" below.
 
 ---
 
@@ -374,8 +373,8 @@ Code.
 2. Open the Command Palette (`View > Command Palette`, or `Cmd/Ctrl+Shift+P`) → **Remote-SSH: Add New SSH Host** → enter: 'ssh doberes@10.11.200.110'
 3. Choose which SSH config file to save the host to. This adds an entry to VS Code's
 SSH config, e.g.:
-  
-    
+
+
   ```bash
   Host 10.11.200.110
   HostName 10.11.200.110
@@ -384,7 +383,6 @@ SSH config, e.g.:
 4. Open the Command Palette again → **Remote-SSH: Connect to Host** → select `10.11.200.110` → enter the password when prompted.
 5. Once connected, `Open Folder` to browse and edit the project files directly
 inside the VM.
-
 
 ---
 
@@ -406,11 +404,10 @@ Verify that the container is running:
 docker ps
 ```
 
-
 ## Step 2: CLI Validation inside the VM (curl)
 From inside the VM terminal, execute:
 ```bash
-curl -k [https://doberes.42.fr](https://doberes.42.fr)
+curl -k https://doberes.42.fr
 ```
 Note on -k: The flag is required to bypass SSL certificate verification since we are
 using a self-signed certificate generated via OpenSSL.
@@ -422,14 +419,14 @@ in the terminal.
 
 ### 1. Local DNS & IP Mapping
 
-#### Option A : Personnal Mas Host (with sudo access)
+#### Option A: Personal Mac Host (with sudo access)
 If you have root privileges on your machine, edit `/etc/hosts` to map the VM's IP
 address:
-```bash
+```
 192.168.64.3    doberes.42.fr
 ```
 
-#### Option B : $@ Capmus Linux Host (without sudo access)
+#### Option B: School Campus Linux Host (without sudo access)
 On school computers, modifying /etc/hosts is restricted due to lack of sudo
 privileges. To bypass this, launch Chrome with internal DNS resolver rules and a
 dedicated user profile directory:
@@ -437,7 +434,7 @@ dedicated user profile directory:
 ```bash
 # Launch Chrome with local DNS override and isolated profile directory:
 # - --host-resolver-rules: Forces Chrome to map 'doberes.42.fr' directly to the VM IP
-# - --user-data-dir: Spawns an isolated instance so flags are not ignored bybackground processes
+# - --user-data-dir: Spawns an isolated instance so flags are not ignored by background processes
 google-chrome --user-data-dir=/tmp/chrome_42 --host-resolver-rules="MAP doberes.42.fr 10.11.200.110" &
 ```
 
@@ -452,14 +449,14 @@ inception-web
 ```
 
 2. Open Chrome/Safari/Firefox on the Mac and navigate to:
-[https://doberes.42.fr](https://doberes.42.fr)
+https://doberes.42.fr
 
 3. Bypass the SSL Warning: Since the certificate is self-signed, browsers will flag it as unsafe.
 - Chrome: Click Advanced → Proceed to doberes.42.fr (unsafe) (or type thisisunsafe directly on the page).
 - Safari: Click Show Details → Visit this website → confirm with TouchID / Password.
 - Firefox: Click Advanced → Accept the Risk and Continue.
 
-### Step 4 : Cleanup
+### Step 4: Cleanup
 Always stop and remove the test container after validation to free port 443:
 ```bash
 docker stop test-nginx && docker rm test-nginx
@@ -585,67 +582,10 @@ The script ends with `exec mysqld_safe ...` rather than a plain call. `exec` rep
 
 ---
 
-# Makefile & Docker compose
-
-docker volume ls
-docker volume inspect inception_mariadb_data
-docker volume inspect inception_wordpress_data
-
----
-
-# Build and launch the project
-
-The project is orchestrated with Docker Compose and driven through a root-level `Makefile`.
-
-```bash
-make          # build images and start all containers (detached)
-make build    # build images only
-make up       # start containers (detached)
-make down     # stop and remove containers
-make stop     # stop containers without removing them
-make start    # restart previously stopped containers
-make logs     # follow logs of all services
-make clean    # down + prune unused Docker resources
-make fclean   # clean + remove volumes and networks
-make re       # fclean + all (full rebuild)
-```
-
-The `Makefile` wraps `docker compose -f srcs/docker-compose.yml`, so the same commands work regardless of the current working directory (as long as run from the repo root).
-
-# Managing containers and volumes
-
-Useful commands during development, once containers are orchestrated via Compose:
-
-```bash
-docker compose -f srcs/docker-compose.yml ps          # status of all services
-docker compose -f srcs/docker-compose.yml logs -f nginx    # follow logs of a specific service
-docker exec -it mariadb bash                           # shell into a running container
-```
-
-All services share a single Docker network (`inception`, bridge driver) defined in `docker-compose.yml`. This lets containers reach each other by service name (e.g. WordPress connects to `mariadb`, not to an IP address) — Docker Compose provides this name resolution automatically.
-
-# Data storage and persistence
-
-Containers are stateless by design: any data written inside a container's filesystem is lost when the container is removed (`docker rm` or `docker compose down`).
-
-To persist data across restarts and rebuilds, named Docker volumes are used:
-
-```yaml
-volumes:
-  mariadb_data:/var/lib/mysql
-```
-
-- `mariadb_data` — stores the MariaDB database files, so articles, users and WordPress configuration survive container recreation
-- (to add once WordPress is set up) a volume for `/var/www/html`, so uploaded media, themes and plugins persist as well
-
-Volumes are declared under the top-level `volumes:` key in `docker-compose.yml` and are managed independently of container lifecycle — they are only removed with an explicit `docker volume rm` or `make fclean`.
-
----
- 
 # Docker Compose — Architecture
- 
+
 `srcs/docker-compose.yml` orchestrates 5 services:
- 
+
 | Service | Role | Depends on |
 |---|---|---|
 | `mariadb` | Database | — |
@@ -653,50 +593,52 @@ Volumes are declared under the top-level `volumes:` key in `docker-compose.yml` 
 | `nginx` | Single entrypoint (TLS, port 443) | `wordpress`, `adminer`, `static-website` |
 | `adminer` (bonus) | Database admin UI | `mariadb` |
 | `static-website` (bonus) | CV page | — |
- 
+
 **Networking**: all services share a single bridge network (`inception_network`). Docker Compose's built-in DNS resolves each service by its name (e.g. `mariadb`, `wordpress`), so containers never need to know each other's IP address.
- 
+
 **Volumes**: two named volumes (`mariadb_data`, `wordpress_data`), both backed by a host bind path via `driver_opts` (`type: none`, `o: bind`, `device: /home/doberes/data/...`). This satisfies the subject's two requirements at once: *named* volumes (not raw bind mounts) that *also* physically live at `/home/login/data` on the host.
- 
+
 **Secrets**: three files declared under the top-level `secrets:` key, each mapped to a file in `../secrets/`. At runtime they are mounted read-only inside the relevant containers at `/run/secrets/<name>`.
- 
+
 **Image naming**: every service pins an explicit tag (`nginx:1.0`, `mariadb:1.0`, etc.) — the image name always matches its service name, and `latest` is never used, as required by the subject.
- 
+
 ⚠️ **Lesson learned**: a Docker Compose service name is case- and character-sensitive when referenced elsewhere (in `nginx.conf`'s `proxy_pass`/`fastcgi_pass`, for instance). A mismatch like `static_website` (underscore) in the config vs `static-website` (hyphen) as the actual service name causes an immediate `host not found in upstream` error and crash-loops the container referencing it. Always keep the exact same spelling everywhere.
- 
+
 ⚠️ **Lesson learned**: YAML does not allow duplicate keys at the same level — declaring two services under the same name (e.g. two blocks both named `adminer:`) does not raise an error, it silently keeps only the last one. Always double-check `docker compose config` output (or `make ps` afterward) to confirm every intended service actually exists.
- 
+
 ---
- 
+
 # WordPress Container
- 
+
 ## Architecture
- 
+
 The WordPress service relies on 3 files working together, mirroring the MariaDB service's structure:
 - `Dockerfile` — installs php-fpm, WP-CLI, and prepares php-fpm to listen over the network
 - `tools/wordpress-setup.sh` — startup logic (used as `ENTRYPOINT`)
 - (no dedicated config file — php-fpm's default pool config is patched in place via `sed`)
+
 ## Configuration choices
- 
+
 **`listen = 9000`** (instead of the default Unix socket) — php-fpm listens on a local socket file by default, which is invisible from another container. Switching to a TCP port makes it reachable from the `nginx` container over the Docker network (see `fastcgi_pass wordpress:9000` in `nginx.conf`).
- 
+
 **`clear_env = no`** — php-fpm strips all environment variables before running PHP by default (a security measure). Since database credentials arrive via environment variables (`.env` + secrets), this had to be disabled, otherwise `wp-config.php` and the setup script would have no way to read them.
- 
+
 **WP-CLI over the web installer** — the subject requires
 WordPress to be already installed and configured on first access
 (no installation wizard). [WP-CLI](https://wp-cli.org/) scripts
 the entire lifecycle (`wp core download`, `wp config create`,
 `wp core install`, `wp user create`) without any browser
 interaction.
- 
+
 ## Startup script logic
- 
+
 Same two-case pattern as MariaDB:
 1. **First launch**: `/var/www/html/wp-config.php` does not
 exist yet → full installation (download WordPress, generate
 config, install core tables, create both required users)
 2. **Restart**: `wp-config.php` already exists (persistent
 volume) → skip installation entirely, start php-fpm directly
+
 Before installing, the script actively waits for MariaDB to
 accept an **authenticated** query (`SELECT 1` with the real
 application credentials), not just a network ping — this
@@ -706,17 +648,15 @@ schema created by the MariaDB script are usable, which a simple
 prevents an indefinite hang if MariaDB never becomes ready; on
 timeout the script exits with an error, and `restart:
 unless-stopped` lets Compose retry.
- 
+
 ## The two required WordPress users
- 
+
 The subject requires two database users, one of them an
-administrator whose username must not contain "admin"
+administrator whose username must not contain "admin" or
 "administrator" in any casing. Both are created via WP-CLI:
 ```bash
-wp core install --admin_user="${WP_ADMIN_USER}" ...   #
-administrator
-wp user create "${WP_USER}" ... --role=author           #
-regular user
+wp core install --admin_user="${WP_ADMIN_USER}" ...   # administrator
+wp user create "${WP_USER}" ... --role=author          # regular user
 ```
 Usernames and emails are stored in `.env` (not sensitive), while
 both passwords live in `secrets/credentials.txt` and are parsed
@@ -725,66 +665,48 @@ both, since they are logically related (WordPress account
 credentials), unlike MariaDB's two separate password files which
 map to two structurally different accounts (application user vs
 root).
- 
+
 ## Comparison — bugs encountered and fixed during development
- 
+
 | ❌ Bug encountered | ✅ Fix |
 |---|---|
-| `curl` only listed as `php8.2-curl` (a PHP extension) in the
-package list, not the actual `curl` CLI tool | Added `curl`
-explicitly alongside `php8.2-curl` |
-| `-p "${SQL_PASSWORD}"` (space between `-p` and the value) |
-`mariadb` interprets `-p` with a space as "prompt for password
-interactively" instead of reading the given value — removed the
-space: `-p"${SQL_PASSWORD}"` |
-| `--url=$(DOMAIN_NAME)` | `$(...)` triggers command execution,
-not variable expansion — corrected to `"${DOMAIN_NAME}"` |
-| `[ -f "var/www/html/wp-config.php" ]` (missing leading `/`) |
-Relative path resolved incorrectly, breaking the "already
-installed" detection on every restart — corrected to the
-absolute path `/var/www/html/wp-config.php` |
-| `exec php-fpm7.3 -F` | Version mismatch with the php8.2-fpm
-package actually installed — corrected to `php-fpm8.2` |
- 
+| `curl` only listed as `php8.2-curl` (a PHP extension) in the package list, not the actual `curl` CLI tool | Added `curl` explicitly alongside `php8.2-curl` |
+| `-p "${SQL_PASSWORD}"` (space between `-p` and the value) | `mariadb` interprets `-p` with a space as "prompt for password interactively" instead of reading the given value — removed the space: `-p"${SQL_PASSWORD}"` |
+| `--url=$(DOMAIN_NAME)` | `$(...)` triggers command execution, not variable expansion — corrected to `"${DOMAIN_NAME}"` |
+| `[ -f "var/www/html/wp-config.php" ]` (missing leading `/`) | Relative path resolved incorrectly, breaking the "already installed" detection on every restart — corrected to the absolute path `/var/www/html/wp-config.php` |
+| `exec php-fpm7.3 -F` | Version mismatch with the php8.2-fpm package actually installed — corrected to `php-fpm8.2` |
+
 ---
- 
+
 # Adminer Container (Bonus)
- 
+
 ## Purpose
- 
+
 Adminer is a single-file PHP application providing a lightweight
 web UI to browse and manage the MariaDB database — a visual
 complement to the CLI (`mariadb -u ... -p`) used to validate the
 database during development.
- 
+
 ## Architecture
- 
+
 Minimal by design: no framework, no build step. `php -S` (PHP's
 built-in development server) serves a single `index.php` file
 downloaded directly from the Adminer project.
- 
+
 ```dockerfile
-RUN curl -fsSL https://www.adminer.org/latest-mysql-en.php -o 
-var/www/adminer/index.php
+RUN curl -fsSL https://www.adminer.org/latest-mysql-en.php -o /var/www/adminer/index.php
 ...
-ENTRYPOINT ["php", "-S", "0.0.0.0:8080", "-t", "/var/www
-adminer"]
+ENTRYPOINT ["php", "-S", "0.0.0.0:8080", "-t", "/var/www/adminer"]
 ```
- 
+
 ## Comparison — bug encountered and fixed
- 
+
 | ❌ Bug encountered | ✅ Fix |
 |---|---|
-| `curl -L fsSL ... -o file` (missing leading dash before the
-combined flags) | `curl` parsed `fsSL` as a separate (invalid)
-URL argument instead of combined flags, so `index.php` was never
-actually written to disk — every request to Adminer returned a
-404 from PHP's own dev server, since it had nothing to serve.
-Corrected to `curl -fsSL ... -o file` (dash attached to the
-flags). |
- 
+| `curl -L fsSL ... -o file` (missing leading dash before the combined flags) | `curl` parsed `fsSL` as a separate (invalid) URL argument instead of combined flags, so `index.php` was never actually written to disk — every request to Adminer returned a 404 from PHP's own dev server, since it had nothing to serve. Corrected to `curl -fsSL ... -o file` (dash attached to the flags). |
+
 ## Access
- 
+
 Reached through NGINX at `/adminer/`, reverse-proxied to the
 container on port 8080:
 ```nginx
@@ -797,42 +719,42 @@ location /adminer/ {
 Login requires the **database** credentials (server: `mariadb`,
 `SQL_USER`/`db_password` secret) — not the WordPress admin
 account, which is a separate authentication system entirely.
- 
+
 ---
- 
+
 # Static Website Container (Bonus)
- 
+
 ## Purpose
- 
+
 A simple standalone CV page, served independently of WordPress — satisfies the
 subject's bonus requirement for "a simple static website... a site for presenting
 your resume", **explicitly excluding PHP** as the implementation language.
- 
+
 ## Why Python
- 
+
 Python was chosen mainly for its built-in `http.server` module: the standard library
 ships a minimal, ready-to-use HTTP server capable of serving any static file (HTML,
 PDF, images, etc.) with a single command and zero extra configuration:
 ```dockerfile
 ENTRYPOINT ["python3", "-m", "http.server", "5000"]
 ```
- 
+
 This is not the only valid option — a dedicated NGINX instance configured to serve
 static files only, or a small Node.js/Express server, would have worked just as
 well. Python was picked as the most minimal path to a working static file server: no
 extra config file to write (unlike a second NGINX instance, which would need its own
 `nginx.conf`), on top of the one already maintained for the main entrypoint.
- 
+
 ## Architecture
- 
+
 ```dockerfile
 COPY ./html/index.html .
 COPY ./html/cv.pdf .
 ENTRYPOINT ["python3", "-m", "http.server", "5000"]
 ```
- 
+
 ## Access
- 
+
 Reached through NGINX at `/cv/`, reverse-proxied to the container on port 5000:
 ```nginx
 location = /cv/ {
@@ -843,56 +765,73 @@ location /cv/ {
     proxy_set_header Host $host;
 }
 ```
- 
+
 ## Comparison — bug encountered and fixed
- 
+
 | ❌ Bug encountered | ✅ Fix |
 |---|---|
-| Link in `index.html` pointed to `cv.pdf` (lowercase) while the actual file was
-named `CV.pdf` (uppercase) | Linux filesystems are case-sensitive — the two names
-refer to different files, causing a 404 when clicking the download link. Aligned the
-casing between the `COPY` instruction, the actual file, and the link in `index
-html`. |
- 
+| Link in `index.html` pointed to `cv.pdf` (lowercase) while the actual file was named `CV.pdf` (uppercase) | Linux filesystems are case-sensitive — the two names refer to different files, causing a 404 when clicking the download link. Aligned the casing between the `COPY` instruction, the actual file, and the link in `index.html`. |
+
 ---
- 
-# Managing containers and volumes
- 
-Useful commands during development, once containers are orchestrated via Compose:
- 
+
+# Build and launch the project
+
+The project is orchestrated with Docker Compose and driven through a root-level `Makefile`.
+
 ```bash
-docker compose -f srcs/docker-compose.yml ps                    # status of all services
-docker compose -f srcs/docker-compose.yml logs -f nginx         # follow logs of a specific service
-docker exec -it inception-mariadb mariadb -u wp_user -p wordpress  # DB shell
-docker exec -it inception-wordpress sh                          # shell into WordPress container
+make          # build images and start all containers (detached)
+make init     # create data directories, .env and secret files (first time only)
+make up       # start containers (detached)
+make down     # stop and remove containers
+make stop     # stop containers without removing them
+make start    # restart previously stopped containers
+make logs     # follow logs of all services
+make clean    # down + prune unused Docker resources
+make fclean   # clean + remove volumes and local data directories
+make re       # fclean + all (full rebuild)
 ```
- 
+
+The `Makefile` wraps `docker compose -f srcs/docker-compose.yml`, so the same commands work regardless of the current working directory (as long as run from the repo root).
+
+---
+
+# Managing containers and volumes
+
+Useful commands during development, once containers are orchestrated via Compose:
+
+```bash
+docker compose -f srcs/docker-compose.yml ps                       # status of all services
+docker compose -f srcs/docker-compose.yml logs -f nginx            # follow logs of a specific service
+docker exec -it inception-mariadb mariadb -u wp_user -p wordpress  # DB shell
+docker exec -it inception-wordpress sh                             # shell into WordPress container
+```
+
 All services share a single Docker network (`inception_network`,
 bridge driver) defined in `docker-compose.yml`. This lets
 containers reach each other by service name (e.g. WordPress
-connects to `mariadb`, NGINX proxies to `wordpress`/`adminer`
+connects to `mariadb`, NGINX proxies to `wordpress`/`adminer`/
 `static-website`) — Docker Compose provides this name resolution
 automatically, and it must exactly match each service's declared
 name in the compose file.
- 
+
 ```bash
 docker volume ls
 docker volume inspect inception_mariadb_data
 docker volume inspect inception_wordpress_data
 ```
- 
+
 ---
- 
+
 # Data storage and persistence
- 
+
 Containers are stateless by design: any data written inside a
-container's filesystem is lost when the container is remov
+container's filesystem is lost when the container is removed
 (`docker rm` or `docker compose down`).
- 
+
 To persist data across restarts and rebuilds, two named Docker
 volumes are used, both bind-mounted to `/home/doberes/data/` on
 the host:
- 
+
 ```yaml
 volumes:
   mariadb_data:
@@ -902,7 +841,7 @@ volumes:
     driver_opts:
       device: /home/doberes/data/wordpress
 ```
- 
+
 - **`mariadb_data`** → mounted at `/var/lib/mysql` in the
 `mariadb` container. Stores all database files, so articles,
 users, comments and WordPress configuration survive container
@@ -912,11 +851,12 @@ the `wordpress` and `nginx` containers. WordPress writes its
 core files, themes, plugins and uploads here; NGINX reads from
 the same volume to serve static assets directly (only PHP
 requests are proxied to `wordpress:9000`).
+
 Volumes are declared under the top-level `volumes:` key in
 `docker-compose.yml` and are managed independently of container
 lifecycle — they are only removed with an explicit `docker
 volume rm` or `make fclean`.
- 
+
 Both services' startup scripts check for the presence of a
 marker file/folder in the volume (`wp-config.php` for WordPress,
 `/var/lib/mysql/${SQL_DATABASE}` for MariaDB) to distinguish a
@@ -924,56 +864,56 @@ first launch from a restart — without this check, every
 container restart would silently wipe and reinitialize the data.
 
 ---
- 
-# Ports and routing 
 
-How EXPOSE, `ports:` and NGINX fit together ?
+# Ports and routing
+
+How EXPOSE, `ports:` and NGINX fit together?
 
 Three different mechanisms are involved, easy to confuse at first:
- 
+
 | Mechanism | Where | What it actually does |
 |---|---|---|
 | `ports:` | `docker-compose.yml` | **Publishes** a container port to the **host** — makes it reachable from outside Docker entirely (e.g. from a browser on the Mac) |
 | `EXPOSE` | `Dockerfile` | Documents which port the process listens on, and makes it reachable **from other containers on the same Docker network** — never reachable from the host directly |
 | `proxy_pass` / `fastcgi_pass` | `nginx.conf` | Decides, based on the requested URL, which internal service (by container name + port) should handle the request |
- 
+
 ## The only port published to the outside world: 443
- 
+
 ```yaml
 # docker-compose.yml
 nginx:
   ports:
     - "443:443"
 ```
- 
+
 This is the **only** `ports:` entry in the whole project. No other service (`wordpress`, `mariadb`, `adminer`, `static-website`) publishes anything to the host — they only declare `EXPOSE` in their own Dockerfile, making them reachable exclusively from other containers on `inception_network`. This directly satisfies the subject's requirement: *"Your NGINX container must be the only entrypoint into your infrastructure via the port 443 only."*
- 
+
 ## How NGINX routes to each internal service
- 
+
 NGINX receives every external request on 443, then decides internally where to forward it, purely based on the URL path — using the target container's name (resolved automatically by Docker's internal DNS) and its `EXPOSE`d port:
- 
+
 ```nginx
 # PHP requests → WordPress (php-fpm), port 9000
 location ~ \.php$ {
     fastcgi_pass wordpress:9000;
 }
- 
+
 # /adminer/ → Adminer, port 8080
 location /adminer/ {
     proxy_pass http://adminer:8080/;
 }
- 
+
 # /cv/ → static website, port 5000
 location /cv/ {
     proxy_pass http://static-website:5000/;
 }
- 
+
 # Everything else → served directly from the shared wordpress_data volume
 location / {
     try_files $uri $uri/ =404;
 }
 ```
- 
+
 ```
 Outside world (browser)
        │
@@ -989,11 +929,11 @@ Outside world (browser)
        ├──→ adminer:8080          (/adminer/)
        └──→ static-website:5000   (/cv/)
 ```
- 
+
 ## Checklist: adding a new service behind NGINX
- 
+
 When adding a new container that should be reachable through the website (e.g. a future bonus service), four things need to be done together — forgetting one is the most common source of a silent 404 or a crash-looping NGINX:
- 
+
 1. **In the new service's own `Dockerfile`**: declare `EXPOSE <port>` — the port the process actually listens on (check the app's own config/docs for its default listening port).
 2. **In `docker-compose.yml`**: add the service under `services:`, on the same `inception_network` as the others. **Do not** add a `ports:` entry — only NGINX should ever publish a port to the host. Also add the service's name to NGINX's `depends_on:` list, so it starts before NGINX tries to reach it.
 3. **In `nginx.conf`**: add a new `location` block, using `proxy_pass http://<exact-service-name>:<port>/;` — the service name **must be character-for-character identical** to the one declared in `docker-compose.yml` (hyphens vs underscores matter, and are a very easy typo to make).
@@ -1004,17 +944,17 @@ When adding a new container that should be reachable through the website (e.g. a
    docker logs inception-nginx        # confirm no "host not found in upstream" crash-loop
    curl -kv https://doberes.42.fr/<new-path>/
 ```
- 
+
 ⚠️ **Reminder of two bugs hit while wiring up Adminer and the static website** (see their dedicated sections above for details): a service name mismatch between `nginx.conf` and `docker-compose.yml` crashes NGINX outright (`host not found in upstream`), while a missing/misconfigured `EXPOSE`d port or an unreachable file inside the target container instead returns a **404** — the request reaches NGINX and gets proxied correctly, but the target container itself has nothing to serve. Checking `docker logs` on both NGINX *and* the target container is the fastest way to tell which of the two situations is happening.
 
 ---
- 
+
 # PHP vs php-fpm
 
-why WordPress and Adminer run PHP differently ?
- 
+Why do WordPress and Adminer run PHP differently?
+
 PHP by itself is just the language/interpreter — it can be executed in several different ways. This project uses two of them, on purpose, for two different reasons:
- 
+
 | | `php -S` (used by Adminer) | php-fpm (used by WordPress) |
 |---|---|---|
 | What it is | PHP's built-in, minimal development web server | FastCGI Process Manager — a dedicated, long-running service |
@@ -1022,10 +962,7 @@ PHP by itself is just the language/interpreter — it can be executed in several
 | Performance | Single process, handles requests one at a time | Pool of worker processes, handles requests **in parallel** |
 | Robustness | Basic — not designed to sustain load | Automatically restarts crashed workers |
 | Communication with NGINX | Plain HTTP | FastCGI protocol, more efficient for this exact use case |
- 
+
 **Adminer** is used occasionally, to inspect the database during development or a defense — `php -S` is more than enough for that, and needs zero extra configuration (see its Dockerfile: `ENTRYPOINT ["php", "-S", "0.0.0.0:8080", "-t", "/var/www/adminer"]`).
- 
+
 **WordPress** is the actual website, potentially serving multiple simultaneous visitors — php-fpm is built for that, and is explicitly required by the subject ("*A Docker container that contains WordPress + php-fpm*"). NGINX forwards `.php` requests to it over FastCGI (`fastcgi_pass wordpress:9000`), rather than proxying plain HTTP as it does for Adminer.
- 
----
-  

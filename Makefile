@@ -15,6 +15,12 @@ COMPOSE				= docker compose -f $(COMPOSE_FILE) --project-name $(PROJECT_NAME)
 DATA_DIR			= /home/$(LOGIN)/data
 
 #---------------------------------------------------------
+# All
+#---------------------------------------------------------
+# Default target : start all containers in detached mode
+all: init up
+
+#---------------------------------------------------------
 # Volumes
 #---------------------------------------------------------
 
@@ -58,9 +64,6 @@ secret_files:
 # ---------------------------------------------------------
 # Build and start containers
 # ---------------------------------------------------------
-
-# Default target : start all containers in detached mode
-all: init up
 
 # Build images (if needed) and start containers in the background
 # Containers keep running after the command ends.
